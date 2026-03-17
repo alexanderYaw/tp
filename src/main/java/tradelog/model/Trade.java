@@ -95,4 +95,36 @@ public class Trade {
                 "Strategy: " + strategy + "\n\n" +
                 String.format("Risk:Reward: %s%.2fR", sign, rr);
     }
+
+    public void setTicker(String ticker) {
+        this.ticker = ticker;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
+    }
+
+    public void setDirection(String direction) {
+        this.direction = direction;
+    }
+
+    public void setEntryPrice(double entryPrice) {
+        this.entryPrice = entryPrice;
+    }
+
+    public void setExitPrice(double exitPrice) {
+        this.exitPrice = exitPrice;
+    }
+
+    public void setStopLossPrice(double stopLossPrice) {
+        this.stopLossPrice = stopLossPrice;
+    }
+
+    public void setOutcome(String outcome) {
+        this.outcome = outcome;
+    }
+
+    public void setStrategy(String strategy) {
+        this.strategy = strategy;
+    }
 }
