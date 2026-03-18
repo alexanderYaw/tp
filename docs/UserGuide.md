@@ -23,8 +23,6 @@
 * **Deleting a Trade: `delete`** – Remove specific trade entries from the log by index.
 * **Listing Trades: `list`** – Display all logged trades in a formatted, single-line overview.
 * **Performance Summary: `summary`** – View metrics including Win Rate, Average Win/Loss, EV, and Total R.
-* **YTD ROI Calculation** – Automatic tracking of Year-To-Date return on investment.
-* **Data Integrity** – Changes are always immediately saved after every command to prevent data loss.
 
 ### [Version 2.0] - System & Logic Enhancement
 *Planned features for advanced strategy management.*
@@ -35,6 +33,7 @@
 * **Streak Tracking** – Monitor win/loss streaks to manage psychological state.
 * **Alias Support** – Create short aliases for long ticker symbols.
 * **Testing Mode** – Switch between "Backtest" and "Live" modes to separate datasets.
+* **Data Integrity** – Changes are always immediately saved after every command to prevent data loss.
 
 ### [Version 3.0] - Advanced Analytics & Export
 *Planned features for professional-grade review.*
