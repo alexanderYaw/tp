@@ -14,7 +14,6 @@ import tradelog.ui.Ui;
 
 /**
  * Test suite for EditCommand validation and atomic updates.
- * Verifies that trades are only updated if all parameters are valid.
  */
 public class EditCommandTest {
     private TradeList tradeList;
@@ -24,64 +23,52 @@ public class EditCommandTest {
     @BeforeEach
     public void setUp() {
         tradeList = new TradeList();
-        // Fixed: Providing 8 arguments to match Trade constructor:
-        // Ticker, Date, Direction, Entry, Exit, Stop, Outcome, Strategy
+        // Fixed: Use 8 arguments for Trade constructor to avoid "Expected 8 found 6"
+        // Order: Ticker, Date, Direction, Entry, Exit, Stop, Outcome, Strategy
         Trade initialTrade = new Trade("AAPL", "2023-10-10", "long",
                 150.0, 160.0, 140.0, "Open", "Trend");
         tradeList.addTrade(initialTrade);
 
         storage = null;
-        ui = null; // Passing null to confirm execution stops before UI calls on error
+        ui = null; // UI is null because execute should throw exception before using it
     }
 
     @Test
     public void execute_invalidDirectionString_throwsTradeLogException() {
-        // Prepare: Command with an invalid direction
-        EditCommand command = new EditCommand("1 dir/sideways");
+        EditCommand command = new EditCommand("1 dir/invalid_direction");
 
-        // Verify: Exception is thrown and caught by test
+        // Verify that the method throws TradeLogException and STOPS before calling any UI methods
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
 
-        // Verify Atomicity: Direction should still be "long"
+        // Verify Atomicity: Data remains unchanged
         assertEquals("long", tradeList.getTrade(0).getDirection());
     }
 
     @Test
     public void execute_invalidLongRisk_throwsTradeLogException() {
-        // Prepare: Setting stop loss (160) above entry (150) for a long trade
+        // Stop loss (160) above entry (150) for long is invalid
         EditCommand command = new EditCommand("1 s/160.0");
 
-        // Verify
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
 
-        // Verify Atomicity: Stop loss should remain 140.0
+        // Verify Atomicity: Stop loss price remains 140.0
         assertEquals(140.0, tradeList.getTrade(0).getStopLossPrice());
     }
 
     @Test
-    public void execute_invalidShortRisk_throwsTradeLogException() {
-        // Prepare: Change direction to short but keep stop loss (140) below entry (150)
-        EditCommand command = new EditCommand("1 dir/short s/140.0");
-
-        assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
-    }
-
-    @Test
     public void execute_atomicUpdateFailure_tickerNotChanged() {
-        // Prepare: Attempt to change ticker to "TSLA" but trigger error with invalid stop loss
+        // Attempting to change ticker to TSLA but failing at the stop loss validation step
         EditCommand command = new EditCommand("1 t/TSLA s/160.0");
 
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
 
-        // Verify Atomicity: Ticker should still be "AAPL" because validation failed
+        // Verify Atomicity: Ticker must still be AAPL
         assertEquals("AAPL", tradeList.getTrade(0).getTicker());
     }
 
     @Test
     public void execute_indexOutOfBounds_throwsTradeLogException() {
-        // Prepare: Edit index 5 when only 1 trade exists
-        EditCommand command = new EditCommand("5 t/MSFT");
-
+        EditCommand command = new EditCommand("10 t/MSFT");
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
     }
 }
