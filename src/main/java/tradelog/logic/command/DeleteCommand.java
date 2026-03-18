@@ -29,27 +29,27 @@ public class DeleteCommand extends Command {
 
         try {
             tradeIndex = Integer.parseInt(arguments);
-
+            
             if (tradeIndex <= 0) {
                 throw new TradeLogException("Trade index must be a positive integer.");
             }
         } catch (NumberFormatException e) {
             throw new TradeLogException("Trade index must be a valid integer.");
         }
+        
+        // Invariant: tradeIndex must be positive
+        assert tradeIndex > 0 : "Trade index should be positive";
     }
-
-    /**
-     * Executes the delete command by removing the trade at the specified index
-     * from the TradeList and displaying the deleted trade summary to the user.
-     *
-     * @param tradeList The current list of trades.
-     * @param ui        The UI handler for output.
-     * @param storage   The storage handler for persistence.
-     */
     @Override
     public void execute(TradeList tradeList, Ui ui, Storage storage) {
         try {
+            int initialSize = tradeList.size();
             Trade deletedTrade = tradeList.deleteTrade(tradeIndex - 1);
+
+            // Invariant: TradeList size should decrease by 1 after deletion
+            assert tradeList.size() == initialSize - 1 : "TradeList size should decrease by 1 after deletion";
+            // Invariant: Deleted trade should not be null
+            assert deletedTrade != null : "Deleted trade should not be null";
 
             System.out.println(deletedTrade.toSummaryString());
             System.out.println("Trade successfully deleted.");
