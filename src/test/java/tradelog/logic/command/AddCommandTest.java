@@ -27,13 +27,9 @@ public class AddCommandTest {
      */
     @Test
     public void constructor_missingPrefix_throwsTradeLogException() {
-        // Missing the "d/" date prefix
         String invalidArgs = " t/AAPL dir/long e/180 x/190 s/170 o/win strat/Breakout";
-
-        TradeLogException exception = assertThrows(TradeLogException.class, () -> {
-            new AddCommand(invalidArgs);
-        });
-
+        TradeLogException exception = assertThrows(TradeLogException.class,
+                () -> new AddCommand(invalidArgs));
         assertTrue(exception.getMessage().contains("Missing required prefix: d/"));
     }
 
@@ -42,13 +38,42 @@ public class AddCommandTest {
      */
     @Test
     public void constructor_blankPrefixValue_throwsTradeLogException() {
-        // The "t/" prefix is present, but has no ticker symbol after it
         String invalidArgs = " t/ d/2026-02-18 dir/long e/180 x/190 s/170 o/win strat/Breakout";
-
-        TradeLogException exception = assertThrows(TradeLogException.class, () -> {
-            new AddCommand(invalidArgs);
-        });
-
+        TradeLogException exception = assertThrows(TradeLogException.class,
+                () -> new AddCommand(invalidArgs));
         assertTrue(exception.getMessage().contains("cannot be empty"));
+    }
+
+    /**
+     * Tests if entry price equal to stop loss price throws a TradeLogException.
+     */
+    @Test
+    public void constructor_entryEqualsStopLoss_throwsTradeLogException() {
+        String invalidArgs = " t/AAPL d/2026-02-18 dir/long e/180 x/190 s/180 o/win strat/Breakout";
+        TradeLogException exception = assertThrows(TradeLogException.class,
+                () -> new AddCommand(invalidArgs));
+        assertTrue(exception.getMessage().contains("Entry price and stop loss price"));
+    }
+
+    /**
+     * Tests if an invalid direction throws a TradeLogException.
+     */
+    @Test
+    public void constructor_invalidDirection_throwsTradeLogException() {
+        String invalidArgs = " t/AAPL d/2026-02-18 dir/up e/180 x/190 s/170 o/win strat/Breakout";
+        TradeLogException exception = assertThrows(TradeLogException.class,
+                () -> new AddCommand(invalidArgs));
+        assertTrue(exception.getMessage().contains("Direction must be exactly"));
+    }
+
+    /**
+     * Tests if a non-numeric price throws a TradeLogException.
+     */
+    @Test
+    public void constructor_invalidPrice_throwsTradeLogException() {
+        String invalidArgs = " t/AAPL d/2026-02-18 dir/long e/abc x/190 s/170 o/win strat/Breakout";
+        TradeLogException exception = assertThrows(TradeLogException.class,
+                () -> new AddCommand(invalidArgs));
+        assertTrue(exception.getMessage().contains("valid number"));
     }
 }

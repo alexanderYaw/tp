@@ -4,7 +4,7 @@ import java.util.Scanner;
 
 import tradelog.exception.TradeLogException;
 import tradelog.logic.command.Command;
-import tradelog.logic.command.ListCommand;
+import tradelog.logic.parser.Parser;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
 import tradelog.ui.Ui;
@@ -45,11 +45,25 @@ public class TradeLog {
         Scanner scanner = new Scanner(System.in);
         while (scanner.hasNextLine()) {
             String input = scanner.nextLine().trim();
-            if (input.equals("list")) {
-                Command command = new ListCommand();
+            if (input.isEmpty()) {
+                ui.showError("Command cannot be empty.");
+                continue;
+            }
+            try {
+                Command command = Parser.parseCommand(input);
                 command.execute(tradeList, ui, storage);
-            } else if (!input.isEmpty()) {
-                ui.showError("Unknown command: " + input);
+                if (command.isExit()) {
+                    try {
+                        storage.saveTrades(tradeList);
+                        ui.showMessage("Trades saved. Goodbye!");
+                    } catch (TradeLogException e) {
+                        ui.showError(e.getMessage());
+                    }
+                    scanner.close();
+                    return;
+                }
+            } catch (TradeLogException e) {
+                ui.showError(e.getMessage());
             }
         }
         scanner.close();

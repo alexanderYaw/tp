@@ -21,15 +21,29 @@ class TradeLogTest {
 
     @Test
     public void run_onStart_showsWelcomeMessage() {
-        System.setIn(new ByteArrayInputStream("".getBytes()));
+        System.setIn(new ByteArrayInputStream("exit\n".getBytes()));
         String output = captureOutput(() -> new TradeLog("./data/test_trades.txt").run());
         assertTrue(output.contains("Welcome to TradeLog!"));
     }
 
     @Test
     public void run_listCommand_showsEmptyMessage() {
-        System.setIn(new ByteArrayInputStream("list\n".getBytes()));
+        System.setIn(new ByteArrayInputStream("list\nexit\n".getBytes()));
         String output = captureOutput(() -> new TradeLog("./data/test_trades.txt").run());
         assertTrue(output.contains("No trades logged yet."));
+    }
+
+    @Test
+    public void run_unknownCommand_showsError() {
+        System.setIn(new ByteArrayInputStream("blah\nexit\n".getBytes()));
+        String output = captureOutput(() -> new TradeLog("./data/test_trades.txt").run());
+        assertTrue(output.contains("Error:"));
+    }
+
+    @Test
+    public void run_exitCommand_showsGoodbye() {
+        System.setIn(new ByteArrayInputStream("exit\n".getBytes()));
+        String output = captureOutput(() -> new TradeLog("./data/test_trades.txt").run());
+        assertTrue(output.contains("Goodbye!"));
     }
 }

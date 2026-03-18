@@ -4,6 +4,7 @@ import java.util.Map;
 
 import tradelog.exception.TradeLogException;
 import tradelog.logic.parser.ArgumentTokeniser;
+import tradelog.logic.parser.ParserUtil;
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
@@ -13,7 +14,6 @@ import tradelog.ui.Ui;
  * Represents a command to edit an existing trade in the TradeLog.
  * Supports partial updates where only specified fields are modified.
  */
-@SuppressWarnings("unused")
 public class EditCommand extends Command {
 
     /** All possible prefixes that can be used for editing. */
@@ -30,7 +30,6 @@ public class EditCommand extends Command {
      * @param arguments The raw string containing the index and optional prefixes.
      * @throws TradeLogException If the index is missing, invalid, or no fields are provided.
      */
-    @SuppressWarnings("unused")
     public EditCommand(String arguments) throws TradeLogException {
         String trimmedArgs = arguments.trim();
         if (trimmedArgs.isEmpty()) {
@@ -64,24 +63,29 @@ public class EditCommand extends Command {
                 return;
             }
             Trade tradeToEdit = tradeList.getTrade(targetIndex);
+
+            assert tradeToEdit != null : "Retrieved trade should not be null";
+            assert targetIndex < tradeList.size() : "Trade index must be within bounds";
+
             if (parsedArgs.containsKey("t/")) {
-                tradeToEdit.setTicker(parsedArgs.get("t/"));
+                tradeToEdit.setTicker(ParserUtil.parseTicker(parsedArgs.get("t/")));
+                assert tradeToEdit.getTicker().equals(parsedArgs.get("t/").toUpperCase()) :
+                        "Ticker should be updated";
             }
             if (parsedArgs.containsKey("d/")) {
                 tradeToEdit.setDate(parsedArgs.get("d/"));
             }
             if (parsedArgs.containsKey("dir/")) {
-                // Formatting (title-case) is handled inside Trade.setDirection()
-                tradeToEdit.setDirection(parsedArgs.get("dir/"));
+                tradeToEdit.setDirection(ParserUtil.parseDirection(parsedArgs.get("dir/")));
             }
             if (parsedArgs.containsKey("e/")) {
-                tradeToEdit.setEntryPrice(Double.parseDouble(parsedArgs.get("e/")));
+                tradeToEdit.setEntryPrice(ParserUtil.parsePrice(parsedArgs.get("e/"), "Entry"));
             }
             if (parsedArgs.containsKey("x/")) {
-                tradeToEdit.setExitPrice(Double.parseDouble(parsedArgs.get("x/")));
+                tradeToEdit.setExitPrice(ParserUtil.parsePrice(parsedArgs.get("x/"), "Exit"));
             }
             if (parsedArgs.containsKey("s/")) {
-                tradeToEdit.setStopLossPrice(Double.parseDouble(parsedArgs.get("s/")));
+                tradeToEdit.setStopLossPrice(ParserUtil.parsePrice(parsedArgs.get("s/"), "Stop Loss"));
             }
             if (parsedArgs.containsKey("o/")) {
                 tradeToEdit.setOutcome(parsedArgs.get("o/"));
@@ -91,8 +95,8 @@ public class EditCommand extends Command {
             }
             ui.showTradeUpdated(targetIndex + 1);
             ui.printTrade(tradeToEdit);
-        } catch (NumberFormatException e) {
-            ui.showError("Numeric fields (Entry/Exit/Stop) must be valid numbers!");
+        } catch (TradeLogException e) {
+            ui.showError(e.getMessage());
         }
     }
 }

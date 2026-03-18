@@ -32,6 +32,7 @@ public class DeleteCommand extends Command {
         } catch (NumberFormatException e) {
             throw new TradeLogException("Trade index must be a valid integer.");
         }
+
     }
 
     /**
@@ -43,8 +44,13 @@ public class DeleteCommand extends Command {
      */
     @Override
     public void execute(TradeList tradeList, Ui ui, Storage storage) {
+        int initialSize = tradeList.size();
         try {
             Trade deletedTrade = tradeList.deleteTrade(tradeIndex - 1);
+
+            assert deletedTrade != null : "Deleted trade should not be null";
+            assert tradeList.size() == initialSize - 1 : "TradeList size should decrease by 1 after deletion";
+
             ui.printTrade(deletedTrade);
             ui.showTradeDeleted();
         } catch (IndexOutOfBoundsException e) {
