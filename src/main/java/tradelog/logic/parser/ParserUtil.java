@@ -59,8 +59,7 @@ public class ParserUtil {
     public static void validatePrices(double entryPrice, double stopLossPrice)
             throws TradeLogException {
         if (entryPrice == stopLossPrice) {
-            throw new TradeLogException(
-                    "Entry price and stop loss price cannot have the same value.");
+            throw new TradeLogException("Entry price and stop loss price cannot have the same value.");
         }
     }
 }
