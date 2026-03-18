@@ -27,7 +27,7 @@ public class TradeList {
     /**
      * Deletes and returns the trade at the specified 0-based index.
      *
-     * @param index 0-based index of the trade.
+     * @param index 0-based index of the trade to delete.
      * @return The deleted trade.
      */
     public Trade deleteTrade(int index) {
