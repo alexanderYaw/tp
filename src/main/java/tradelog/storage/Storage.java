@@ -36,8 +36,12 @@ public class Storage {
     public void saveTrades(TradeList tradeList) throws TradeLogException {
         try {
             File file = new File(filePath);
-            if (file.getParentFile() != null) {
-                file.getParentFile().mkdirs();
+            if (file.getParentFile() != null && !file.getParentFile().exists()) {
+                boolean dirCreated = file.getParentFile().mkdirs();
+                if (!dirCreated) {
+                    throw new TradeLogException("Failed to create directory: "
+                            + file.getParentFile().getPath());
+                }
             }
             try (FileWriter writer = new FileWriter(filePath)) {
                 for (int i = 0; i < tradeList.size(); i++) {

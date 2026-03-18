@@ -8,7 +8,8 @@ import tradelog.ui.Ui;
  * Represents a command to exit the TradeLog application.
  * Signals to the main application loop that execution should terminate.
  */
-public class ExitCommand extends Command{
+public class ExitCommand extends Command {
+
     /**
      * Executes the exit command by displaying a farewell message to the user.
      *

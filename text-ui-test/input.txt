@@ -1,1 +1,6 @@
+add t/AAPL d/2026-02-18 dir/long e/180 x/190 s/170 o/win strat/Breakout
 list
+edit 1 x/195
+summary
+delete 1
+exit

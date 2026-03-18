@@ -1,26 +1,37 @@
 package tradelog.logic.command;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import tradelog.model.TradeList;
-import tradelog.ui.Ui;
 import tradelog.storage.Storage;
+import tradelog.ui.Ui;
 
 /**
- * Represents a command entity for the listing of trades.
- * This class triggers the display logic within the UI to show all logged trades
- * to the user in a formatted, numbered list.
+ * Command to display all logged trades.
+ * Corresponds to the user command: {@code list}
  */
 public class ListCommand extends Command {
 
+    /** Logger for tracking command execution. */
+    private static final Logger logger = Logger.getLogger(ListCommand.class.getName());
+
     /**
-     * Executes the listing command by delegating the display of the current
-     * trade log to the UI handler.
+     * Executes the list command by printing all trades via the UI.
      *
-     * @param trades  The list of trades to be displayed.
-     * @param ui      The user interface handler responsible for formatting the output.
-     * @param storage The storage handler (unused in this specific command).
+     * @param tradeList The current list of trades.
+     * @param ui        The UI handler used to print the trade list.
+     * @param storage   Not used by this command.
      */
     @Override
-    public void execute(TradeList trades, Ui ui, Storage storage) {
-        ui.printTradeList(trades);
+    public void execute(TradeList tradeList, Ui ui, Storage storage) {
+        assert tradeList != null : "TradeList should not be null";
+        assert ui != null : "Ui should not be null";
+
+        logger.log(Level.INFO, "Executing list command. Trade count: {0}", tradeList.size());
+
+        ui.printTradeList(tradeList);
+
+        logger.log(Level.INFO, "List command executed successfully.");
     }
 }

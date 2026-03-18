@@ -28,6 +28,15 @@ public class Trade {
      */
     public Trade(String ticker, String date, String direction, double entryPrice,
                  double exitPrice, double stopLossPrice, String outcome, String strategy) {
+        assert direction.equalsIgnoreCase("Long") || direction.equalsIgnoreCase("Short") :
+                "Direction must be 'Long' or 'Short'";
+        assert !Double.isNaN(entryPrice) && !Double.isInfinite(entryPrice) :
+                "Entry price cannot be NaN or infinite";
+        assert !Double.isNaN(exitPrice) && !Double.isInfinite(exitPrice) :
+                "Exit price cannot be NaN or infinite";
+        assert !Double.isNaN(stopLossPrice) && !Double.isInfinite(stopLossPrice) :
+                "Stop loss price cannot be NaN or infinite";
+
         this.ticker = ticker;
         this.date = date;
         this.direction = direction;
@@ -46,36 +55,21 @@ public class Trade {
      * @return The calculated Risk:Reward ratio, or 0 if risk is zero.
      */
     public double getRiskRewardRatio() {
-        // Invariant: Direction must be either "Long" or "Short"
-        assert direction.equalsIgnoreCase("Long") || direction.equalsIgnoreCase("Short") :
-                "Direction must be 'Long' or 'Short'";
-        // Invariant: Prices must be valid numbers
-        assert !Double.isNaN(entryPrice) && !Double.isInfinite(entryPrice) :
-                "Entry price cannot be NaN or infinite";
-        assert !Double.isNaN(exitPrice) && !Double.isInfinite(exitPrice) :
-                "Exit price cannot be NaN or infinite";
-        assert !Double.isNaN(stopLossPrice) && !Double.isInfinite(stopLossPrice) :
-                "Stop loss price cannot be NaN or infinite";
-
         double risk = Math.abs(entryPrice - stopLossPrice);
-        // Invariant: Risk must be non-negative
         assert risk >= 0 : "Risk cannot be negative";
+
         if (risk == 0) {
             return 0;
         }
         double reward;
         if (direction.equalsIgnoreCase("short")) {
             reward = entryPrice - exitPrice;
-            // Invariant: Reward must be a finite number
-            assert !Double.isNaN(reward) && !Double.isInfinite(reward) : "Reward cannot be NaN or infinite";
+            assert !Double.isNaN(reward) && !Double.isInfinite(reward) :
+                    "Reward cannot be NaN or infinite";
         } else {
             reward = exitPrice - entryPrice;
-            // Invariant: Risk must be a finite number
-            assert !Double.isNaN(risk) && !Double.isInfinite(risk) : "Risk cannot be NaN or infinite";
         }
-        
         double riskRewardRatio = reward / risk;
-        // Invariant: Risk:Reward ratio must be a finite number
         assert !Double.isNaN(riskRewardRatio) && !Double.isInfinite(riskRewardRatio) :
                 "Risk:Reward ratio cannot be NaN or infinite";
         return riskRewardRatio;
@@ -88,8 +82,8 @@ public class Trade {
      * @return The formatted price string (e.g., "180" instead of "180.0").
      */
     private String formatPrice(double price) {
-        // Invariant: Price must be a finite number
         assert !Double.isNaN(price) && !Double.isInfinite(price) : "Price cannot be NaN or infinite";
+
         if (price == (long) price) {
             return String.format("%d", (long) price);
         } else {
@@ -134,33 +128,99 @@ public class Trade {
     }
 
     /**
-     * Returns a single-line string representation of the trade.
-     * Matches the expected output: 1. AAPL | 2026-02-18 | Long | E:180 | TP:190 | SL:170 | Win | Breakout
+     * Returns a single-line string representation of the trade for display in the list.
+     * Format: AAPL | 2026-02-18 | Long | E:180 | TP:190 | SL:170 | Win | Breakout
      *
      * @return Formatted trade details.
      */
     @Override
     public String toString() {
-        return ticker + " | " +
-                date + " | " +
-                direction + " | " +
-                "E:" + formatPrice(entryPrice) + " | " +
-                "TP:" + formatPrice(exitPrice) + " | " +
-                "SL:" + formatPrice(stopLossPrice) + " | " +
-                outcome + " | " +
-                strategy;
+        return ticker + " | "
+                + date + " | "
+                + direction + " | "
+                + "E:" + formatPrice(entryPrice) + " | "
+                + "TP:" + formatPrice(exitPrice) + " | "
+                + "SL:" + formatPrice(stopLossPrice) + " | "
+                + outcome + " | "
+                + strategy;
     }
-    
+
+    /**
+     * Returns the ticker symbol.
+     *
+     * @return The ticker symbol.
+     */
     public String getTicker() {
         return ticker;
     }
 
-    public String getStrategy() {
-        return strategy;
+    /**
+     * Returns the trade date.
+     *
+     * @return The date in YYYY-MM-DD format.
+     */
+    @SuppressWarnings("unused")
+    public String getDate() {
+        return date;
     }
 
+    /**
+     * Returns the trade direction.
+     *
+     * @return The direction (Long or Short).
+     */
+    @SuppressWarnings("unused")
+    public String getDirection() {
+        return direction;
+    }
+
+    /**
+     * Returns the entry price.
+     *
+     * @return The entry price.
+     */
+    @SuppressWarnings("unused")
     public double getEntryPrice() {
         return entryPrice;
+    }
+
+    /**
+     * Returns the exit price.
+     *
+     * @return The exit price.
+     */
+    @SuppressWarnings("unused")
+    public double getExitPrice() {
+        return exitPrice;
+    }
+
+    /**
+     * Returns the stop loss price.
+     *
+     * @return The stop loss price.
+     */
+    @SuppressWarnings("unused")
+    public double getStopLossPrice() {
+        return stopLossPrice;
+    }
+
+    /**
+     * Returns the trade outcome.
+     *
+     * @return The outcome (Win or Loss).
+     */
+    @SuppressWarnings("unused")
+    public String getOutcome() {
+        return outcome;
+    }
+
+    /**
+     * Returns the trade strategy.
+     *
+     * @return The strategy description.
+     */
+    public String getStrategy() {
+        return strategy;
     }
 
     /**
