@@ -59,11 +59,16 @@ public class EditCommand extends Command {
      */
     @Override
     public void execute(TradeList tradeList, Ui ui, Storage storage) {
-        if (targetIndex < 0 || targetIndex >= tradeList.size()) {
+        assert tradeList != null : "TradeList should not be null when executing edit";
+        assert ui != null : "Ui should not be null when executing edit";
+        assert targetIndex >= 0 : "targetIndex should be 0 or greater (0-based)";
+
+        if (targetIndex >= tradeList.size()) {
             throw new TradeLogException("Trade index out of bounds.");
         }
 
         Trade tradeToEdit = tradeList.getTrade(targetIndex);
+        assert tradeToEdit != null : "Trade object to edit should not be null";
 
         // 1. Parse and stage updated values in local variables (Pre-computation)
         String newTicker = parsedArgs.containsKey("t/")
