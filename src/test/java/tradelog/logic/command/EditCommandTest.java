@@ -29,8 +29,8 @@ public class EditCommandTest {
                 150.0, 160.0, 140.0, "Open", "Trend");
         tradeList.addTrade(initialTrade);
 
-        storage = null;
-        ui = null; // UI is null because execute should throw exception before using it
+        ui = new Ui();
+        storage = new Storage("test_edit_storage.txt");
     }
 
     @Test
