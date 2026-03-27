@@ -48,6 +48,7 @@ public class FilterCommand extends Command {
         assert ui != null : "Ui should not be null";
 
         java.util.List<Integer> matchingIndices = new java.util.ArrayList<>();
+        TradeList filteredTrades = new TradeList();
 
         for (int i = 0; i < tradeList.size(); i++) {
             boolean matchesTicker;
@@ -67,6 +68,7 @@ public class FilterCommand extends Command {
 
             if (matchesTicker && matchesStrategy && matchesDate) {
                 matchingIndices.add(i);
+                filteredTrades.addTrade(trade);
             }
         }
 
@@ -78,6 +80,8 @@ public class FilterCommand extends Command {
                 System.out.println((index + 1) + ". " + tradeList.getTrade(index));
             }
             ui.showLine();
+            SummaryCommand summaryCommand = new SummaryCommand();
+            summaryCommand.execute(filteredTrades, ui, storage);
         }
     }
 }
