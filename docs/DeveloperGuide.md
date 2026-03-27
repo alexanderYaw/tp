@@ -152,7 +152,45 @@ An alternative considered was to have `ListCommand` access `TradeList` directly 
 
 ---
 
-#### 2.2.3 Testing Strategy for `Ui` and `ListCommand`
+#### 2.2.3 AddCommand
+
+##### Architecture-Level Description
+
+The `AddCommand` is a core state-changing operation responsible for introducing new trades into the TradeLog system. It acts as the primary bridge between the `Parser` component (which supplies the raw user input), the `Model` component (by instantiating new `Trade` objects and updating the in-memory `TradeList`), and the `Storage` component (triggering the immediate-save mechanism to persist the new data).
+
+To adhere to the principle of Separation of Concerns, the execution of the `add` feature is explicitly split into two distinct phases: an initialization/validation phase, and an execution/mutation phase.
+
+##### Component-Level Description
+
+1. Construction & Validation Phase: When the user inputs an `add` command, the `Parser` creates a new `AddCommand(String arguments)`. The constructor immediately passes the raw string to the `ArgumentTokeniser` to map prefixes to their respective string values. It then utilizes `ParserUtil` to strictly validate the financial logic of the inputs (e.g., ensuring a `long` position does not have a stop-loss higher than the entry price, and checking that all prices are valid positive numbers). If any validation fails during this step, a `TradeLogException` is thrown before the `TradeList` or `Storage` is ever accessed.
+
+2. Execution Phase: Once the `AddCommand` is successfully instantiated with a fully valid `Trade` object held in its internal state, the main loop calls `execute(tradeList, ui, storage)`. The command appends the new trade to the `TradeList`, triggers the `Ui` to display a confirmation message with the formatted trade details, and implicitly relies on the main loop's architecture to save the newly updated state to the text file.
+
+```
+User        TradeLog         Parser        AddCommand         Trade        TradeList        Ui
+│             │               │               │                │              │            │
+│─"add t/.."─►│               │               │                │              │            │
+│             │─parseCommand─►│               │                │              │            │
+│             │               │─new AddCmd()─►│                │              │            │
+│             │               │               │──new Trade()──►│              │            │
+│             │               │               │◄──Trade────────│              │            │
+│             │               │◄──AddCommand──│                │              │            │
+│             │◄──AddCommand──│               │                │              │            │
+│             │               │               │                │              │            │
+│             │────────────execute(tradeList, ui, storage)────►│              │            │
+│             │               │               │                │──addTrade(t)►│            │
+│             │               │               │                │◄─────────────│            │
+│             │               │               │                │──printTrade─►│            │
+│             │               │               │                │◄─────────────│            │
+│             │               │               │                │──showAdded()►│            │
+│             │               │               │                │◄─────────────│            │
+│             │◄──────────────────────────────│                │              │            │
+```
+##### Design Rationale
+
+The alternative considered having the constructor simply store the raw user string, pushing all tokenizing and validation inside `execute()`. This was rejected because it violates the Single Responsibility Principle. It would bloat the `execute()` method with string manipulation, financial logic validation, memory updates, and UI updates all at once, making unit testing significantly more difficult.
+
+#### 2.2.4 Testing Strategy for `Ui` and `ListCommand`
 
 Both `Ui` and `ListCommand` are tested using a `captureOutput` helper that temporarily redirects `System.out` to a `ByteArrayOutputStream`. This pattern avoids any dependency on mocking frameworks and works natively with JUnit 5.
 
@@ -169,7 +207,7 @@ Both test classes confirm that **no state is mutated** by these components — t
 
 ---
 
-#### 2.2.4 [v2.0] Strategy Shortcut Expansion Feature
+#### 2.2.5 [v2.0] Strategy Shortcut Expansion Feature
 
 ##### Overview
 
@@ -249,7 +287,7 @@ Expansion is done at parse time (in `AddCommand`'s constructor), not at display 
 
 ---
 
-#### 2.2.5 [v2.0] Strategy Comparison Feature (`compare` command)
+#### 2.2.6 [v2.0] Strategy Comparison Feature (`compare` command)
 
 ##### Overview
 
