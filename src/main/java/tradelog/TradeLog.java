@@ -24,27 +24,36 @@ public class TradeLog {
      * @param filePath Path to the file used for persistent storage.
      */
     public TradeLog(String filePath) {
-        assert filePath != null && !filePath.isEmpty() : "File path should not be null or empty";
-
         ui = new Ui();
         storage = new Storage(filePath);
+
+        String prompt = storage.exists()
+                ? "Enter password to load trades: "
+                : "No trades.txt found. Create a new password: ";
+
+        String password = ui.readPassword(prompt);
+        try {
+            storage.setPassword(password);
+        } catch (TradeLogException e) {
+            ui.showError("Security initialization failed: " + e.getMessage());
+        }
+
         TradeList loadedTrades;
         try {
             loadedTrades = storage.loadTrades();
+            if (!loadedTrades.isEmpty()) {
+                ui.showMessage("Loaded " + loadedTrades.size() + " trade(s) from storage.");
+            }
         } catch (TradeLogException e) {
             ui.showError("Failed to load saved trades: " + e.getMessage());
             loadedTrades = new TradeList();
         }
         tradeList = loadedTrades;
-        if (!tradeList.isEmpty()) {
-            ui.showMessage("Loaded " + tradeList.size() + " trade(s) from storage.");
-        }
     }
 
     /** Starts the main input loop. */
     public void run() {
         ui.showWelcome();
-        Scanner scanner = new Scanner(System.in);
         while (scanner.hasNextLine()) {
             String input = scanner.nextLine().trim();
             if (input.isEmpty()) {
