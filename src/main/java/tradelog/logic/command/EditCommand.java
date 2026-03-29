@@ -61,6 +61,7 @@ public class EditCommand extends Command {
     public void execute(TradeList tradeList, Ui ui, Storage storage) {
         assert tradeList != null : "TradeList should not be null when executing edit";
         assert ui != null : "Ui should not be null when executing edit";
+        assert storage != null : "storage should not be null when executing edit";
         assert targetIndex >= 0 : "targetIndex should be 0 or greater (0-based)";
 
         if (targetIndex >= tradeList.size()) {

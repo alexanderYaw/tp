@@ -16,31 +16,34 @@
 ## 3. Features
 
 ### [Version 1.0] - Core Backtesting Suite
-*These features form the baseline workflow that the current release supports.*
+*These features are fully functional in the current release.*
 
-* **Adding a Trade: `add`** - Log new trades with ticker, date, direction, entry/exit/stop prices, outcome, and strategy.
-* **Editing a Trade: `edit`** - Update one or more fields of an existing record using the trade index.
-* **Deleting a Trade: `delete`** - Remove a trade by index to keep the log accurate.
-* **Listing Trades: `list`** - Display every logged trade with numbering for easy reference.
-* **Filtering Trades: `filter`** - Narrow the list by ticker, strategy, or date (supports partial matches with `-p`).
-* **Performance Summary: `summary`** - Calculate win rate, average win/loss, EV, and total R across the current log.
-* **Persistent Storage** - The application saves data to the default `trades.txt` file after every mutation.
+* **Adding a Trade: `add`** – Log new trades with ticker, date, direction, prices, and strategy.
+* **Editing a Trade: `edit`** – Update specific fields of existing records by their index.
+* **Deleting a Trade: `delete`** – Remove specific trade entries from the log by index.
+* **Listing Trades: `list`** – Display all logged trades in a formatted, single-line overview.
+* **Performance Summary: `summary`** – View metrics including Win Rate, Average Win/Loss, EV, and Total R.
+* **Exit: `exit`** – Terminate the application and view final metrics including Win Rate, Average Win/Loss, EV, and Total R.
 
-### [Version 2.0] - Strategy & Analytics Enhancements
-*This release adds more powerful reporting and strategy-friendly aliases.*
+### [Version 2.0] - System & Logic Enhancement
+*Planned features for advanced strategy management.*
 
-* **Strategy Shortcuts** - Enter common strategies via shorthand codes such as `BB`, `PB`, or `MTR` and TradeLog expands them to the canonical names before storing and filtering trades (see Section 6).
-* **Strategy Comparison: `compare`** - View per-strategy metrics (win rate, average win/loss, and EV) in one report to identify the strongest systems (see Section 7).
+* **Duplicate Warning** – Alerts for duplicate entries of the same ticker, date, and price.
+* **Daily Loss Limit** – System warnings when a pre-set daily risk cap is hit.
+* **Filtering & Sorting** – Review performance by specific tickers or sort by profit/loss.
+* **Streak Tracking** – Monitor win/loss streaks to manage psychological state.
+* **Alias Support** – Create short aliases for long ticker symbols.
+* **Testing Mode** – Switch between "Backtest" and "Live" modes to separate datasets.
 
-### [Version 2.1] - Advanced Analytics & Export (Planned)
-*The following ideas remain on the roadmap for future releases.*
+### [Version 3.0] - Advanced Analytics & Export
+*Planned features for professional-grade review.*
 
-* **Psychological Tagging** - Log emotional states to identify behavioral patterns.
-* **Max Drawdown** - Automatic calculation of worst-case capital decline.
-* **CSV Export** - Convert data to CSV for use in external tools like Excel.
-* **Reflective Journaling** - Attach reflections and screenshots to each trade record.
-* **Pre-trade Checklist** - Enforce pre-entry discipline before saving trades.
-* **Bulk Import** - Import historical trades for large-scale system testing.
+* **Psychological Tagging** – Log emotional states to identify behavioral patterns.
+* **Max Drawdown** – Automatic calculation of worst-case capital decline.
+* **CSV Export** – Convert data to CSV for use in external tools like Excel.
+* **Reflective Journaling** – Attach reflections and screenshots to each trade record.
+* **Pre-trade Checklist** – Enforce plan consistency before saving entries.
+* **Bulk Import** – Import historical trades for large-scale system testing.
 
 ---
 
