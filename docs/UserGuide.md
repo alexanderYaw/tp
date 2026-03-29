@@ -23,6 +23,7 @@
 * **Deleting a Trade: `delete`** – Remove specific trade entries from the log by index.
 * **Listing Trades: `list`** – Display all logged trades in a formatted, single-line overview.
 * **Performance Summary: `summary`** – View metrics including Win Rate, Average Win/Loss, EV, and Total R.
+* **Exit: `exit`** – Terminate the application and view final metrics including Win Rate, Average Win/Loss, EV, and Total R.
 
 ### [Version 2.0] - System & Logic Enhancement
 *Planned features for advanced strategy management.*

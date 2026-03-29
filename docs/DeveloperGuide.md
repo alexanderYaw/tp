@@ -205,9 +205,58 @@ The two `ListCommandTest` cases cover:
 
 Both test classes confirm that **no state is mutated** by these components — they are pure output operations.
 
+#### 2.2.5 EditCommand
+
+##### Architecture-Level Description
+The `EditCommand` allows users to modify existing trades within the `TradeList`. To minimize user friction, it supports **Partial Updates**, where only specified prefixes (e.g., `t/`, `e/`) are modified while others remain unchanged. The implementation prioritizes **Atomicity**: the command validates the entire "new state" of the trade before any internal data is overwritten.
+
+##### Component-Level Description
+The `execute(tradeList, ui, storage)` method performs the following logic:
+
+1.  **Retrieval**: Fetches the existing `Trade` object from the `TradeList` using `targetIndex`.
+2.  **Defensive Assertions**: Employs **Java Assertions** to verify that `tradeList` and `ui` are not null, and that `tradeToEdit` was successfully retrieved.
+3.  **Staging**: Pre-computes updated values using `parsedArgs`. If a prefix is present, `ParserUtil` is used to parse the new value; otherwise, the existing value from the `Trade` object is used.
+4.  **Validation**: Calls `ParserUtil.validatePrices()` and `ParserUtil.validateStopLoss()` on the staged variables to ensure the proposed edit is financially logical.
+5.  **Commitment**: Once validated, it calls the respective `set` methods on the `Trade` object and triggers the `Ui` to display the updated record.
+
+
+
+##### Sequence Diagram — `edit` execution path
+
+````
+TradeLog        EditCommand           TradeList              Trade          Ui
+│                 │                     │                   │               │
+│──execute(...)──►│                     │                   │               │
+│                 │──getTrade(idx)────► │                   │               │
+│                 │◄── tradeToEdit ──── │                   │               │
+│                 │                     │                   │               │
+│                 │─── [Assert tradeToEdit != null] ───────►│               │
+│                 │─── [Validate staged variables] ────────►│               │
+│                 │                     │                   │               │
+│                 │──setTicker(...)────►│                   │               │
+│                 │──setEntry(...)─────►│                   │               │
+│                 │                     │                   │               │
+│                 │──showTradeUpdated──►│                   │               │
+│                 │◄────────────────────│                   │               │
+│◄────────────────│                     │                   │               │
+
+````
+##### Design Rationale
+* **Partial Updates**: Chosen over full replacement because trades contain 8+ fields; forcing a user to re-input all data to fix one typo (e.g., in a Ticker) is inefficient for a CLI tool.
+* **Validation before Mutation**: Ensures that the `Model` never enters an invalid state (e.g., a Long position with a stop-loss above entry), maintaining data integrity.
+* **Assertions**: Used for internal invariants. If `tradeToEdit` is null despite passing the index check, it indicates a critical failure in the `Model`'s list management that requires immediate developer attention.
+
+#### 2.2.6 Testing Strategy for `EditCommand` and Assertions
+
+The `EditCommandTest` class ensures that the "Read-Validate-Commit" cycle works as intended.
+
+**Key Test Cases:**
+* **Statelessness of Unedited Fields**: Verifies that fields not specified in the `edit` command remain identical to their original values.
+* **Boundary Validation**: Confirms that `TradeLogException` is thrown if an edit results in an invalid price relationship (e.g., Entry == Stop Loss).
+* **Assertion Verification**: Although `assert` is typically for development, test environments are configured with `-ea` (enable assertions) to ensure that the internal null-checks added to `EditCommand` and `ListCommand` trigger correctly if invalid dependencies are provided.
 ---
 
-#### 2.2.5 [v2.0] Strategy Shortcut Expansion Feature
+#### 2.2.7 [v2.0] Strategy Shortcut Expansion Feature
 
 ##### Overview
 
@@ -287,7 +336,7 @@ Expansion is done at parse time (in `AddCommand`'s constructor), not at display 
 
 ---
 
-#### 2.2.6 [v2.0] Strategy Comparison Feature (`compare` command)
+#### 2.2.8 [v2.0] Strategy Comparison Feature (`compare` command)
 
 ##### Overview
 
@@ -500,6 +549,8 @@ TradeLog helps financial trading professionals systematically log, manage, and a
 2. **Edit**: `edit 1 x/230`
 3. **Delete**: `delete 1`
 4. **List**: `list` (Verify it reflects changes immediately in the console).
+5. **Summary**: `summary`
+6. **Exit**: `exit`
 
 ### 7.3 Testing Strategy Shortcuts (v2.0)
 
