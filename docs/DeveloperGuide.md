@@ -166,6 +166,8 @@ To adhere to the principle of Separation of Concerns, the execution of the `add`
 
 2. Execution Phase: Once the `AddCommand` is successfully instantiated with a fully valid `Trade` object held in its internal state, the main loop calls `execute(tradeList, ui, storage)`. The command appends the new trade to the `TradeList`, triggers the `Ui` to display a confirmation message with the formatted trade details, and implicitly relies on the main loop's architecture to save the newly updated state to the text file.
 
+##### Sequence Diagram — Full `add` execution path
+
 ```
 User        TradeLog         Parser        AddCommand         Trade        TradeList        Ui
 │             │               │               │                │              │            │
@@ -190,7 +192,89 @@ User        TradeLog         Parser        AddCommand         Trade        Trade
 
 The alternative considered having the constructor simply store the raw user string, pushing all tokenizing and validation inside `execute()`. This was rejected because it violates the Single Responsibility Principle. It would bloat the `execute()` method with string manipulation, financial logic validation, memory updates, and UI updates all at once, making unit testing significantly more difficult.
 
-#### 2.2.4 Testing Strategy for `Ui` and `ListCommand`
+---
+
+#### 2.2.4 DeleteCommand
+
+##### Architecture-Level Description
+
+`DeleteCommand` handles the removal of a specific logged trade from the application's memory. It relies heavily on boundary checking to ensure that users do not attempt to delete trades that do not exist, successfully mapping the user's 1-based visual index (seen in the UI) to the internal 0-based `ArrayList` index of the model.
+
+##### Component-Level Description
+
+The constructor of `DeleteCommand` accepts a string representing the target index. It first performs superficial validation—checking for empty strings, non-numeric characters, and negative numbers—and throws a `TradeLogException` immediately if the input is malformed.
+
+During `execute(tradeList, ui, storage)`, the command attempts to call `tradeList.deleteTrade(tradeIndex - 1)`. Because the `Parser` phase does not inherently know the current dynamic size of the `TradeList`, out-of-bounds errors cannot be caught during construction. Therefore, the `execute` method wraps the deletion call in a `try-catch` block targeting `IndexOutOfBoundsException`. If caught, it gracefully intercepts the crash and delegates an error message to `Ui.showError()`.
+
+##### Sequence Diagram — `delete` execution with boundary handling
+
+```
+TradeLog        DeleteCommand        TradeList             Ui
+│                  │                  │                  │
+│────execute()────►│                  │                  │
+│                  │──deleteTrade(i)─►│                  │
+│                  │                  │ [if valid]       │
+│                  │◄──deletedTrade───│                  │
+│                  │──printTrade()──────────────────────►│
+│                  │◄────────────────────────────────────│
+│                  │                  │ [if invalid]     │
+│                  │◄──throws IndexOutOfBoundsException──│
+│                  │──showError()───────────────────────►│
+│                  │◄────────────────────────────────────│
+│◄─────────────────│                  │                  │
+```
+
+##### Design Rationale
+
+An alternative considered letting `DeleteCommand` throw the `IndexOutOfBoundsException` back up to the main `TradeLog` execution loop. This was rejected because the main loop would then need specific catch blocks for every possible internal data structure error across all commands. Keeping the error handling localized to the command ensures the main loop remains clean and strictly focused on high-level orchestration.
+
+---
+
+#### 2.2.5 SummaryCommand
+
+##### Architecture-Level Description
+
+`SummaryCommand` calculates and displays an aggregate mathematical performance report across the entire `TradeList`. Like `ListCommand`, it is a non-mutating operation; it reads the application's state to perform calculations but does not alter the data or interact with `Storage`.
+
+##### Component-Level Description
+
+When `execute()` is called, `SummaryCommand` first guards against an empty `TradeList`, triggering an early exit via `Ui.showSummaryEmpty()` if no trades exist.
+
+If populated, it iterates through every trade in the list exactly once. During this single `O(n)` pass, it maintains running totals for total trades, winning trades, losing trades, total positive R-multiples, and total negative R-multiples. Break-even trades (where Risk/Reward equals 0) are safely skipped in the specific win/loss tallies but are correctly factored into the total trade count and Expected Value (EV) denominator.
+
+After the loop completes, it calculates the win rate, average win, average loss, and EV, passing these final primitive floating-point values directly to `Ui.showSummary()` for formatting.
+
+##### Sequence Diagram — `summary` execution and calculation
+
+```
+TradeLog        SummaryCommand        TradeList             Ui
+│                  │                   │                 │
+│────execute()────►│                   │                 │
+│                  │──isEmpty()───────►│                 │
+│                  │◄──boolean─────────│                 │
+│                  │                   │                 │
+│                  │ [if not empty]    │                 │
+│                  │──size()──────────►│                 │
+│                  │◄──int─────────────│                 │
+│                  │                   │                 │
+│                  │ loop [for every trade in list]      │
+│                  │──getTrade(i)─────►│                 │
+│                  │◄──Trade───────────│                 │
+│                  │──getRiskReward()─►│                 │
+│                  │◄──double──────────│                 │
+│                  │                   │                 │
+│                  │──showSummary(metrics)──────────────►│
+│                  │◄────────────────────────────────────│
+│◄─────────────────│                   │                 │
+```
+
+##### Design Rationale
+
+An alternative considered having `TradeList` maintain running totals internally (e.g., updating a `totalWins` and `totalLosses` variable every time an `add`, `delete`, or `edit` command is executed). This was rejected because it heavily couples the core data model to a specific reporting feature. It would also make state-changing operations significantly more complex and prone to synchronization bugs (e.g., if a user edits a trade from a "loss" to a "win", the `TradeList` would have to reverse previous mathematical operations).
+
+---
+
+#### 2.2.6 Testing Strategy for `Ui` and `ListCommand`
 
 Both `Ui` and `ListCommand` are tested using a `captureOutput` helper that temporarily redirects `System.out` to a `ByteArrayOutputStream`. This pattern avoids any dependency on mocking frameworks and works natively with JUnit 5.
 
@@ -205,9 +289,58 @@ The two `ListCommandTest` cases cover:
 
 Both test classes confirm that **no state is mutated** by these components — they are pure output operations.
 
+#### 2.2.5 EditCommand
+
+##### Architecture-Level Description
+The `EditCommand` allows users to modify existing trades within the `TradeList`. To minimize user friction, it supports **Partial Updates**, where only specified prefixes (e.g., `t/`, `e/`) are modified while others remain unchanged. The implementation prioritizes **Atomicity**: the command validates the entire "new state" of the trade before any internal data is overwritten.
+
+##### Component-Level Description
+The `execute(tradeList, ui, storage)` method performs the following logic:
+
+1.  **Retrieval**: Fetches the existing `Trade` object from the `TradeList` using `targetIndex`.
+2.  **Defensive Assertions**: Employs **Java Assertions** to verify that `tradeList` and `ui` are not null, and that `tradeToEdit` was successfully retrieved.
+3.  **Staging**: Pre-computes updated values using `parsedArgs`. If a prefix is present, `ParserUtil` is used to parse the new value; otherwise, the existing value from the `Trade` object is used.
+4.  **Validation**: Calls `ParserUtil.validatePrices()` and `ParserUtil.validateStopLoss()` on the staged variables to ensure the proposed edit is financially logical.
+5.  **Commitment**: Once validated, it calls the respective `set` methods on the `Trade` object and triggers the `Ui` to display the updated record.
+
+
+
+##### Sequence Diagram — `edit` execution path
+
+````
+TradeLog        EditCommand           TradeList              Trade          Ui
+│                 │                     │                   │               │
+│──execute(...)──►│                     │                   │               │
+│                 │──getTrade(idx)────► │                   │               │
+│                 │◄── tradeToEdit ──── │                   │               │
+│                 │                     │                   │               │
+│                 │─── [Assert tradeToEdit != null] ───────►│               │
+│                 │─── [Validate staged variables] ────────►│               │
+│                 │                     │                   │               │
+│                 │──setTicker(...)────►│                   │               │
+│                 │──setEntry(...)─────►│                   │               │
+│                 │                     │                   │               │
+│                 │──showTradeUpdated──►│                   │               │
+│                 │◄────────────────────│                   │               │
+│◄────────────────│                     │                   │               │
+
+````
+##### Design Rationale
+* **Partial Updates**: Chosen over full replacement because trades contain 8+ fields; forcing a user to re-input all data to fix one typo (e.g., in a Ticker) is inefficient for a CLI tool.
+* **Validation before Mutation**: Ensures that the `Model` never enters an invalid state (e.g., a Long position with a stop-loss above entry), maintaining data integrity.
+* **Assertions**: Used for internal invariants. If `tradeToEdit` is null despite passing the index check, it indicates a critical failure in the `Model`'s list management that requires immediate developer attention.
+
+#### 2.2.6 Testing Strategy for `EditCommand` and Assertions
+
+The `EditCommandTest` class ensures that the "Read-Validate-Commit" cycle works as intended.
+
+**Key Test Cases:**
+* **Statelessness of Unedited Fields**: Verifies that fields not specified in the `edit` command remain identical to their original values.
+* **Boundary Validation**: Confirms that `TradeLogException` is thrown if an edit results in an invalid price relationship (e.g., Entry == Stop Loss).
+* **Assertion Verification**: Although `assert` is typically for development, test environments are configured with `-ea` (enable assertions) to ensure that the internal null-checks added to `EditCommand` and `ListCommand` trigger correctly if invalid dependencies are provided.
 ---
 
-#### 2.2.5 [v2.0] Strategy Shortcut Expansion Feature
+#### 2.2.7 [v2.0] Strategy Shortcut Expansion Feature
 
 ##### Overview
 
@@ -230,50 +363,32 @@ The supported shortcuts are:
 
 ##### Implementation
 
-The expansion is implemented as a static lookup in a new utility method `ParserUtil.expandStrategyShortcut(String)`. This method is called inside `ParserUtil`'s strategy parsing pipeline, which is already invoked by `AddCommand` and `EditCommand`.
+The expansion is implemented as a static lookup in `ParserUtil.parseStrategy(String)`.
+This strategy parsing pipeline is used by `AddCommand`, `EditCommand`, and `FilterCommand`.
 
-The method uses a `HashMap<String, String>` constant, `STRATEGY_SHORTCUTS`, defined at the class level:
+The feature uses an immutable `Map<String, String>` constant, `STRATEGY_SHORTCUTS`,
+defined at the class level:
 
 ```java
-private static final Map<String, String> STRATEGY_SHORTCUTS = new HashMap<>();
+private static final Map<String, String> STRATEGY_SHORTCUTS =
+        createStrategyShortcuts();
 
-static {
-    STRATEGY_SHORTCUTS.put("BB",  "Breakout");
-    STRATEGY_SHORTCUTS.put("TBF", "Trend Bar Failure");
-    STRATEGY_SHORTCUTS.put("PB",  "Pullback");
-    STRATEGY_SHORTCUTS.put("MTR", "Major Trend Reversal");
-    STRATEGY_SHORTCUTS.put("HOD", "High of Day");
-    STRATEGY_SHORTCUTS.put("LOD", "Low of Day");
-    STRATEGY_SHORTCUTS.put("MR",  "Mean Reversion");
-    STRATEGY_SHORTCUTS.put("TR",  "Trading Range");
-    STRATEGY_SHORTCUTS.put("DB",  "Double Bottom");
-    STRATEGY_SHORTCUTS.put("DT",  "Double Top");
-}
-
-public static String expandStrategyShortcut(String raw) {
-    String upper = raw.trim().toUpperCase();
-    return STRATEGY_SHORTCUTS.getOrDefault(upper, raw.trim());
+public static String parseStrategy(String strategy) {
+    String trimmedStrategy = strategy.trim();
+    return STRATEGY_SHORTCUTS.getOrDefault(
+            trimmedStrategy.toUpperCase(), trimmedStrategy);
 }
 ```
 
 If the input does not match any known shortcut, it is returned unchanged. This means custom strategy names (e.g., `Gap Fill`) continue to work without modification.
 
-##### Sequence Diagram — Strategy shortcut expansion during `add`
+##### Sequence Diagram - Strategy shortcut expansion during `add`
 
-```
-User           Parser        AddCommand        ParserUtil         Trade
- │               │               │                  │               │
- │─"add ... strat/BB"──►│        │                  │               │
- │               │──new AddCommand(args)──►│         │               │
- │               │               │──expandStrategyShortcut("BB")──►│  │
- │               │               │◄──"Breakout"───────────────────│  │
- │               │               │──new Trade(..., "Breakout")──────────►│
- │               │◄──────────────│                  │               │
-```
+![Strategy shortcut expansion sequence](diagrams/strategy-shortcut-add-sequence.png)
 
 ##### Why Implemented This Way
 
-Expansion is done at parse time (in `AddCommand`'s constructor), not at display time. This means:
+Expansion is done at parse time, not at display time. This means:
 
 1. The expanded name is what gets stored in the file. If the user runs `list`, they see `Breakout`, not `BB`.
 2. The `compare` command (see below) groups by the expanded name, so `BB` and `Breakout` entered by different team members are correctly unified.
@@ -283,15 +398,15 @@ Expansion is done at parse time (in `AddCommand`'s constructor), not at display 
 
 - **Expand at display time only**: Rejected because stored data would contain abbreviations, making the storage file harder to read and causing grouping bugs in the `compare` command.
 - **Store the abbreviation and expand only in reports**: Rejected for the same reasons as above. Canonical data at the source is simpler and safer.
-- **Use an enum instead of a HashMap**: Considered, but a `HashMap` is easier to extend at runtime (e.g., user-defined shortcuts in a future version) and does not require recompilation to add new shortcuts.
+- **Use an enum instead of a lookup map**: Considered, but a lookup map keeps the parsing logic lightweight and easy to extend.
 
 ---
 
-#### 2.2.6 [v2.0] Strategy Comparison Feature (`compare` command)
+#### 2.2.8 [v2.0] Strategy Comparison Feature (`compare` command)
 
 ##### Overview
 
-The `compare` command allows a trader to see performance metrics broken down by strategy. Instead of viewing one aggregate summary across all trades, the user can see exactly how each individual strategy performs — win rate, average win, average loss, and expected value (EV) — in a single command.
+The `compare` command allows a trader to see performance metrics broken down by strategy. Instead of viewing one aggregate summary across all trades, the user can see exactly how each individual strategy performs - win rate, average win, average loss, and expected value (EV) - in a single command.
 
 **Example output:**
 
@@ -301,21 +416,30 @@ compare
 Strategy Comparison:
 
 Breakout:
-  Trades: 15 | Win Rate: 60% | Avg Win: 2.02R | Avg Loss: 0.95R | EV: +0.832R
+Trades: 15
+Win Rate: 60%
+Average Win: 2.02R
+Average Loss: 0.95R
+EV: +0.832R
 
 Pullback:
-  Trades: 20 | Win Rate: 50% | Avg Win: 1.50R | Avg Loss: 1.00R | EV: +0.250R
+Trades: 20
+Win Rate: 50%
+Average Win: 1.50R
+Average Loss: 1.00R
+EV: +0.250R
 ```
 
 ##### Architecture-Level Design
 
-The `compare` command follows the same architecture as every other command in TradeLog. It fits into the existing structure without requiring any changes to `TradeLog`, `Parser`, `TradeList`, `Storage`, or `Ui`.
+The `compare` command follows the same architecture as every other command in TradeLog. It fits into the existing structure without requiring any changes to `TradeLog`, `TradeList`, or `Storage`.
 
 The new classes and modifications required are:
 
 | Class            | Change                                                   |
 |------------------|----------------------------------------------------------|
 | `CompareCommand` | New class extending `Command`                            |
+| `StrategyStats`  | New helper class for per-strategy aggregates             |
 | `Parser`         | Add `case "compare"` to the switch                       |
 | `Ui`             | Add `showStrategyComparison(Map<String, StrategyStats>)` |
 
@@ -323,8 +447,9 @@ A helper value object `StrategyStats` is introduced to group per-strategy metric
 
 ```java
 class StrategyStats {
-    int trades;
-    int wins;
+    int tradeCount;
+    int winCount;
+    int lossCount;
     double totalWinR;
     double totalLossR;
 }
@@ -335,48 +460,17 @@ class StrategyStats {
 The `execute` method of `CompareCommand` performs the following steps:
 
 1. **Guard**: If `tradeList` is empty, delegate to `ui.showSummaryEmpty()` and return.
-2. **Grouping**: Iterate through all trades. For each trade, look up or create a `StrategyStats` entry in a `LinkedHashMap<String, StrategyStats>` keyed by strategy name. A `LinkedHashMap` is used (instead of `HashMap`) to preserve insertion order so strategies appear in the order they were first logged.
-3. **Accumulation**: For each trade, increment the trade count. If the R:R ratio is positive, increment wins and accumulate `totalWinR`; if negative, accumulate `totalLossR`.
-4. **Display**: After the loop, pass the populated map to `ui.showStrategyComparison(...)`, which formats and prints each strategy's block.
+2. **Grouping**: Iterate through all trades. For each trade, call `trade.getStrategy()` and use `strategyComparison.computeIfAbsent(...)` on a `LinkedHashMap<String, StrategyStats>` to look up or create the corresponding accumulator. A `LinkedHashMap` is used to preserve insertion order so strategies appear in the order they were first logged.
+3. **Accumulation**: Call `trade.getRiskRewardRatio()` and pass the result to `strategyStats.addTrade(...)` so the per-strategy counts and totals are updated in one place.
+4. **Display**: After the loop, pass the populated map to `ui.showStrategyComparison(...)`, which formats and prints each strategy block.
 
-##### Sequence Diagram — `compare` execution
+##### Sequence Diagram - `compare` execution
 
-```
-TradeLog     Parser      CompareCommand        TradeList           Ui
-    │            │               │                  │               │
-    │─"compare"──►│               │                  │               │
-    │            │──new CompareCommand()──►│          │               │
-    │            │◄──────────────│          │               │
-    │────────────execute(tradeList, ui, storage)──────►│               │
-    │            │               │──size()─────────────►│               │
-    │            │               │◄── n ───────────────│               │
-    │            │               │  loop i=0..n-1      │               │
-    │            │               │──getTrade(i)────────►│               │
-    │            │               │◄── Trade ───────────│               │
-    │            │               │── accumulate into StrategyStats map  │
-    │            │               │──showStrategyComparison(map)──────────►│
-    │            │               │                     │── prints each strategy block
-    │◄───────────│◄──────────────│                     │               │
-```
+![Compare execution sequence](diagrams/compare-sequence.png)
 
-##### Class Diagram — CompareCommand and its dependencies
+##### Class Diagram - CompareCommand and its dependencies
 
-```
-«abstract»
-Command
-    │
-    └── CompareCommand
-            │ uses
-            ├──────────► TradeList
-            │                │ contains
-            │                └──────────► Trade
-            │                                │ getRiskRewardRatio()
-            │                                │ getStrategy()
-            │ uses
-            └──────────► Ui
-                            │
-                            └── showStrategyComparison(map)
-```
+![Compare command class diagram](diagrams/compare-class-diagram.png)
 
 ##### Design Rationale
 
@@ -384,17 +478,16 @@ Command
 Traders tend to think of their strategies in the order they used them, not alphabetically. Preserving insertion order makes the output feel natural. A future `compare sort/alpha` variant could sort alphabetically if desired.
 
 **Why not add grouping logic to `TradeList`?**
-`TradeList` is a model class that should only manage the collection — add, delete, get, and size. Adding grouping logic there would violate single responsibility. `CompareCommand` is the correct place for this aggregation, consistent with how `SummaryCommand` handles its own calculations.
+`TradeList` is a model class that should only manage the collection - add, delete, get, and size. Adding grouping logic there would violate single responsibility. `CompareCommand` is the correct place for this aggregation, consistent with how `SummaryCommand` handles its own calculations.
 
 **Why not reuse `SummaryCommand`'s logic?**
 `SummaryCommand` calculates one aggregate result. `CompareCommand` calculates `n` independent results (one per strategy). Though the per-strategy arithmetic is similar, merging them into a single class would make both harder to read, test, and extend independently.
 
 **Alternatives considered:**
 
-- **A `filterByStrategy` method on `TradeList`**: This was considered to avoid iterating through all trades in `CompareCommand`. However, it would require multiple passes (one per unique strategy), making it O(n × k) where k is the number of strategies. The single-pass accumulation approach is O(n) and simpler.
+- **A `filterByStrategy` method on `TradeList`**: This was considered to avoid iterating through all trades in `CompareCommand`. However, it would require multiple passes (one per unique strategy), making it O(n x k) where `k` is the number of strategies. The single-pass accumulation approach is O(n) and simpler.
 - **Storing `StrategyStats` inside `TradeList` as a cached field**: Rejected because it would couple the model to a specific reporting concept and require cache invalidation on every add/edit/delete.
 
----
 
 ## 3. Product Scope
 
@@ -444,25 +537,25 @@ TradeLog helps financial trading professionals systematically log, manage, and a
 | **v2.0** | trader               | mark a ticker as "watched but not taken"                           | Remember which setups I passed on during review           |
 | **v2.0** | power user           | use shortcut codes for strategy names (e.g., BB, PB)               | I can log trades faster without typing full names         |
 | **v2.0** | trader               | compare performance across all strategies in one view              | I can identify which strategy has the best edge           |
-| **v3.0** | trader               | tag each trade with my emotional state                             | I can identify psychological patterns                     |
-| **v3.0** | trader               | view a summary over a selected date range                          | I can analyze short-term results                          |
-| **v3.0** | trader               | view my win rate for a specific strategy                           | I can assess its consistency                              |
-| **v3.0** | trader               | calculate average risk per trade                                   | I can monitor my risk management discipline               |
-| **v3.0** | trader               | back up my trading data locally                                    | I do not lose my records                                  |
-| **v3.0** | trader               | load previously saved trading sessions                             | I can continue my analysis seamlessly                     |
-| **v3.0** | trader               | complete a pre-trade checklist before entry                        | I follow my trading plan consistently                     |
-| **v3.0** | trader               | view multiple strategies side-by-side                              | Objectively compare their performance                     |
-| **v3.0** | trader               | automatically calculate maximum drawdown                           | I understand my worst-case risk exposure                  |
-| **v3.0** | trader               | export trades from a specific date range to CSV                    | Share selected periods with my mentor or accountant       |
-| **v3.0** | trader               | automatically calculate the R-multiple                             | I evaluate performance relative to risk                   |
-| **v3.0** | trader               | review a summary and confirm before saving                         | So that I catch typos before they enter my records        |
-| **v3.0** | inexperienced trader | see how many trades I've taken today                               | So that I know if I'm overtrading                         |
-| **v3.0** | trader               | receive an alert if win rate drops below threshold                 | I can review and adjust my strategy promptly              |
-| **v3.0** | trader               | write reflections for each trade                                   | I can improve my decision-making process                  |
-| **v3.0** | trader               | filter and analyze trades by time of day                           | I can identify when I perform best                        |
-| **v3.0** | trader               | Bulk import historical trades                                      | I can test my trading systems on other datasets           |
-| **v3.0** | trader               | attach a chart screenshot to each trade                            | I can visually review my entry and exit decisions         |
-| **v3.0** | trader               | see my total capital currently at risk                             | I avoid overexposure                                      |
+| **v2.1** | trader               | tag each trade with my emotional state                             | I can identify psychological patterns                     |
+| **v2.1** | trader               | view a summary over a selected date range                          | I can analyze short-term results                          |
+| **v2.1** | trader               | view my win rate for a specific strategy                           | I can assess its consistency                              |
+| **v2.1** | trader               | calculate average risk per trade                                   | I can monitor my risk management discipline               |
+| **v2.1** | trader               | back up my trading data locally                                    | I do not lose my records                                  |
+| **v2.1** | trader               | load previously saved trading sessions                             | I can continue my analysis seamlessly                     |
+| **v2.1** | trader               | complete a pre-trade checklist before entry                        | I follow my trading plan consistently                     |
+| **v2.1** | trader               | view multiple strategies side-by-side                              | Objectively compare their performance                     |
+| **v2.1** | trader               | automatically calculate maximum drawdown                           | I understand my worst-case risk exposure                  |
+| **v2.1** | trader               | export trades from a specific date range to CSV                    | Share selected periods with my mentor or accountant       |
+| **v2.1** | trader               | automatically calculate the R-multiple                             | I evaluate performance relative to risk                   |
+| **v2.1** | trader               | review a summary and confirm before saving                         | So that I catch typos before they enter my records        |
+| **v2.1** | inexperienced trader | see how many trades I've taken today                               | So that I know if I'm overtrading                         |
+| **v2.1** | trader               | receive an alert if win rate drops below threshold                 | I can review and adjust my strategy promptly              |
+| **v2.1** | trader               | write reflections for each trade                                   | I can improve my decision-making process                  |
+| **v2.1** | trader               | filter and analyze trades by time of day                           | I can identify when I perform best                        |
+| **v2.1** | trader               | Bulk import historical trades                                      | I can test my trading systems on other datasets           |
+| **v2.1** | trader               | attach a chart screenshot to each trade                            | I can visually review my entry and exit decisions         |
+| **v2.1** | trader               | see my total capital currently at risk                             | I avoid overexposure                                      |
 
 ---
 
@@ -500,6 +593,8 @@ TradeLog helps financial trading professionals systematically log, manage, and a
 2. **Edit**: `edit 1 x/230`
 3. **Delete**: `delete 1`
 4. **List**: `list` (Verify it reflects changes immediately in the console).
+5. **Summary**: `summary`
+6. **Exit**: `exit`
 
 ### 7.3 Testing Strategy Shortcuts (v2.0)
 
@@ -515,3 +610,4 @@ TradeLog helps financial trading professionals systematically log, manage, and a
 2. Run: `compare`
 3. Verify that each strategy appears as a separate block with correct trade count, win rate, and EV figures.
 4. Run `compare` on an empty trade list and verify the empty-list message is shown.
+

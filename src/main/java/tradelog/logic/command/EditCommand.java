@@ -61,6 +61,7 @@ public class EditCommand extends Command {
     public void execute(TradeList tradeList, Ui ui, Storage storage) {
         assert tradeList != null : "TradeList should not be null when executing edit";
         assert ui != null : "Ui should not be null when executing edit";
+        assert storage != null : "storage should not be null when executing edit";
         assert targetIndex >= 0 : "targetIndex should be 0 or greater (0-based)";
 
         if (targetIndex >= tradeList.size()) {
@@ -84,7 +85,9 @@ public class EditCommand extends Command {
         double newStop = parsedArgs.containsKey("s/")
                 ? ParserUtil.parsePrice(parsedArgs.get("s/"), "Stop Loss") : tradeToEdit.getStopLossPrice();
         String newOutcome = parsedArgs.getOrDefault("o/", tradeToEdit.getOutcome());
-        String newStrat = parsedArgs.getOrDefault("strat/", tradeToEdit.getStrategy());
+        String newStrat = parsedArgs.containsKey("strat/")
+                ? ParserUtil.parseStrategy(parsedArgs.get("strat/"))
+                : tradeToEdit.getStrategy();
 
         // 2. Business Logic Validation (Reusing teammate's methods)
         // Step A: Ensure entry and stop loss are not the same
