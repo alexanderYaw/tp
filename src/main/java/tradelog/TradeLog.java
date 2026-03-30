@@ -1,7 +1,5 @@
 package tradelog;
 
-import java.io.File;
-
 import tradelog.exception.TradeLogException;
 import tradelog.logic.command.Command;
 import tradelog.logic.parser.Parser;
@@ -20,23 +18,15 @@ public class TradeLog {
     private final Storage storage;
 
     /**
-     * Constructs a TradeLog instance, dynamically find or create a storage file,
-     * based on the password entered by the user.
+     * Constructs a TradeLog instance, prompting the user for a password to find or
+     * create a storage profile.
      *
      * @param baseDirectory The base directory where the storage files are located.
      * @param baseFileName The base name of the storage file.
      */
     public TradeLog(String baseDirectory, String baseFileName) {
         ui = new Ui();
-        String defaultPath = baseDirectory + "/" + baseFileName + ".txt";
-        boolean anyProfileExists = new File(defaultPath).exists();
-        
-        String prompt = anyProfileExists
-                ? "Enter password to load your profile (or create a new one): "
-                : "No profiles found. Create a new password: ";
-
-        String password = ui.readPassword(prompt);
-        ProfileManager profileManager = new ProfileManager(baseDirectory, baseFileName, password, ui);
+        ProfileManager profileManager = new ProfileManager(baseDirectory, baseFileName, ui);
         storage = profileManager.getActiveStorage();
         tradeList = profileManager.getLoadedTrades();
     }

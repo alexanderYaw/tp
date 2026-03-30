@@ -160,15 +160,36 @@ public class Ui {
     }
 
     /**
-     * Reads a password from the user.
+     * Reads a password from the user, masking input when a system console is available.
      *
      * @param prompt The prompt to display.
      * @return The password entered by the user.
      */
     public String readPassword(String prompt) {
+        java.io.Console console = System.console();
+        if (console != null) {
+            char[] passwordChars = console.readPassword(prompt);
+            return passwordChars != null ? new String(passwordChars) : "";
+        }
+        
+        // Fallback when no console is available (e.g. IDE or piped input)
         System.out.print(prompt);
         if (scanner.hasNextLine()) {
             return scanner.nextLine();
+        }
+        return "";
+    }
+
+    /**
+     * Prints a prompt and reads a plain line of text from the user.
+     *
+     * @param prompt The prompt to display.
+     * @return The trimmed line entered by the user.
+     */
+    public String readLine(String prompt) {
+        System.out.print(prompt);
+        if (scanner.hasNextLine()) {
+            return scanner.nextLine().trim();
         }
         return "";
     }
