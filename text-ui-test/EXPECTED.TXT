@@ -1,3 +1,6 @@
+
+ No profiles found. Create a new password: 
+ No existing profile found. Creating new profile...
 --------------------------------------------------------------------------------
 Welcome to TradeLog!
 Commands: add, list, edit, delete, filter, compare, summary, exit
