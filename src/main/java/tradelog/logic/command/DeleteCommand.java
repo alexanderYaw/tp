@@ -50,6 +50,9 @@ public class DeleteCommand extends Command {
 
         int initialSize = tradeList.size();
         try {
+            // ✅ only save AFTER validation passes
+            UndoCommand.saveState(tradeList);
+
             Trade deletedTrade = tradeList.deleteTrade(tradeIndex - 1);
 
             assert deletedTrade != null : "Deleted trade should not be null";
