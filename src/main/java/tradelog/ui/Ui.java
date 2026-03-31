@@ -16,7 +16,7 @@ public class Ui {
 
     private static final String DIVIDER = "-".repeat(80);
     private static final String COMMAND_LIST =
-            "Commands: add, list, edit, delete, filter, compare, summary, undo, exit";
+            "Commands: add, list, edit, delete, filter, compare, summary, exit";
     private static final String STRATEGY_SHORTCUTS_HEADER = "Strategy shortcuts:";
     private static final Logger logger = Logger.getLogger(Ui.class.getName());
     private final java.util.Scanner scanner = new java.util.Scanner(System.in);
@@ -205,18 +205,6 @@ public class Ui {
                     Math.abs(strategyStats.getExpectedValue()));
         }
         showLine();
-    }
-
-    /** Prints a message confirming the most recent action was undone. */
-    public void showUndoSuccess() {
-        System.out.println("Most recent change has been undone.");
-        logger.log(Level.INFO, "Undo success message displayed.");
-    }
-
-    /** Prints a message when there is no previous action to undo. */
-    public void showUndoUnavailable() {
-        System.out.println("There is no action to undo.");
-        logger.log(Level.INFO, "Undo unavailable message displayed.");
     }
 
     /**
