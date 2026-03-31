@@ -62,6 +62,18 @@ class TradeLogTest {
     }
 
     @Test
+    public void run_compareCommand_showsStrategyComparison() {
+        String compareInput = "testpassword\n"
+                + "add t/AAPL d/2026-02-18 dir/long e/180 x/190 s/170 o/win strat/BB\n"
+                + "compare\n"
+                + "exit\n";
+        System.setIn(new ByteArrayInputStream(compareInput.getBytes()));
+        String output = captureOutput(() -> new TradeLog(tempDir.toString(), "trades").run());
+        assertTrue(output.contains("Strategy Comparison:"));
+        assertTrue(output.contains("Breakout:"));
+    }
+
+    @Test
     public void run_emptyCommand_showsError() {
         System.setIn(new ByteArrayInputStream("testpassword\n\nexit\n".getBytes()));
         String output = captureOutput(() -> new TradeLog(tempDir.toString(), "trades").run());
