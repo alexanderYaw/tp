@@ -22,22 +22,7 @@ TradeLog follows a modular CLI architecture, separating concerns into four main 
 
 The diagram below shows the high-level flow of a user command through the system:
 
-```
-User Input
-    │
-    ▼
-TradeLog (main loop)
-    │
-    ├──► Parser ──► Command (AddCommand / EditCommand / ...)
-    │                   │
-    │                   ▼
-    │              TradeList (Model)
-    │                   │
-    │                   ▼
-    │              Storage (persist)
-    │                   │
-    └──► Ui (output to console)
-```
+![Architecture overview diagram](diagrams/architecture-overview-diagram.png)
 
 ---
 
@@ -165,16 +150,7 @@ It extends `Command`, the abstract base class that defines the `execute(TradeLis
 
 ##### Component-Level Description
 
-```
-«abstract»
-Command
-    │
-    └── ListCommand
-            │
-            └── execute(tradeList, ui, storage)
-                    │
-                    └── ui.printTradeList(tradeList)
-```
+![List command logic diagram](diagrams/list-command-logic-diagram.png)
 
 The `execute` method:
 
@@ -373,24 +349,8 @@ The `execute(tradeList, ui, storage)` method performs the following logic:
 
 ##### Sequence Diagram — `edit` execution path
 
-````
-TradeLog        EditCommand           TradeList              Trade          Ui
-│                 │                     │                   │               │
-│──execute(...)──►│                     │                   │               │
-│                 │──getTrade(idx)────► │                   │               │
-│                 │◄── tradeToEdit ──── │                   │               │
-│                 │                     │                   │               │
-│                 │─── [Assert tradeToEdit != null] ───────►│               │
-│                 │─── [Validate staged variables] ────────►│               │
-│                 │                     │                   │               │
-│                 │──setTicker(...)────►│                   │               │
-│                 │──setEntry(...)─────►│                   │               │
-│                 │                     │                   │               │
-│                 │──showTradeUpdated──►│                   │               │
-│                 │◄────────────────────│                   │               │
-│◄────────────────│                     │                   │               │
+![Editing trades logic diagram](diagrams/editing-trade-logic-diagram.png)
 
-````
 ##### Design Rationale
 * **Partial Updates**: Chosen over full replacement because trades contain 8+ fields; forcing a user to re-input all data to fix one typo (e.g., in a Ticker) is inefficient for a CLI tool.
 * **Validation before Mutation**: Ensures that the `Model` never enters an invalid state (e.g., a Long position with a stop-loss above entry), maintaining data integrity.
