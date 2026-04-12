@@ -4,7 +4,7 @@ hide circles
 
 title Component-Level Description
 
-class " {abstract} \n Command " as Command {
+abstract class Command {
     --
     +execute(tradeList, ui, storage)
 }
@@ -14,7 +14,9 @@ class ListCommand {
     +execute(tradeList, ui, storage)
 }
 
-entity Ui
+class Ui <<boundary>> {
+    +printTradeList(tradeList)
+}
 
 Command <|-- ListCommand
 ListCommand ..> Ui : calls printTradeList()

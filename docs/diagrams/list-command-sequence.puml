@@ -27,7 +27,7 @@ TradeLog -> ListCommand : execute(...)
 activate ListCommand
 ListCommand -> Ui : printTradeList(tradeList)
 activate Ui
-ref over Ui, TradeList : printTradeList(tradeList)
+ref over Ui, TradeList : ui-print-trade-list-sequence
 Ui --> ListCommand
 deactivate Ui
 ListCommand --> TradeLog
