@@ -20,7 +20,7 @@ public class ArgumentTokeniser {
     public static HashMap<String, String> tokenise(String userInput, String[] prefixes)
             throws TradeLogException {
         HashMap<String, String> argumentMap = new HashMap<>();
-        String paddedInput = " " + userInput;
+        String paddedInput = " " + userInput.trim().replaceAll("\\s+", " ");
         for (String prefix : prefixes) {
             String prefixWithSpace = " " + prefix;
             int startIndex = paddedInput.indexOf(prefixWithSpace);

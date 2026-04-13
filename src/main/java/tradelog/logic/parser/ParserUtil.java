@@ -76,6 +76,9 @@ public class ParserUtil {
         } catch (NumberFormatException e) {
             throw new TradeLogException("The " + fieldName + " price must be a valid number!");
         }
+        if (Double.isNaN(price) || Double.isInfinite(price)) {
+            throw new TradeLogException("The " + fieldName + " price must be a valid number!");
+        }
         if (price <= 0) {
             throw new TradeLogException("The " + fieldName + " price must be a positive number.");
         }

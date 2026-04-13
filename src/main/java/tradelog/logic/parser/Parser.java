@@ -26,7 +26,7 @@ public class Parser {
      * @throws TradeLogException If the command is unknown or arguments are invalid.
      */
     public static Command parseCommand(String userInput) throws TradeLogException {
-        String[] splitInput = userInput.trim().split(" ", 2);
+        String[] splitInput = userInput.trim().split("\\s+", 2);
         String commandWord = splitInput[0].toLowerCase();
         String arguments = splitInput.length > 1 ? splitInput[1] : "";
 
