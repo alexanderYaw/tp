@@ -1,5 +1,8 @@
 package tradelog.logic.parser;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -56,18 +59,47 @@ public class ParserUtil {
 
     /**
      * Parses a string representation of a price into a double.
+     * The value must be a positive number.
      *
      * @param priceString The string representing the price.
      * @param fieldName   The name of the field (e.g., "Entry", "Exit") for error messages.
      * @return The parsed double value.
-     * @throws TradeLogException If the string cannot be converted to a valid number.
+     * @throws TradeLogException If the string is null/empty, not a valid number, or not positive.
      */
     public static double parsePrice(String priceString, String fieldName) throws TradeLogException {
+        if (priceString == null || priceString.trim().isEmpty()) {
+            throw new TradeLogException("The " + fieldName + " price cannot be empty.");
+        }
+        double price;
         try {
-            return Double.parseDouble(priceString);
+            price = Double.parseDouble(priceString.trim());
         } catch (NumberFormatException e) {
             throw new TradeLogException("The " + fieldName + " price must be a valid number!");
         }
+        if (price <= 0) {
+            throw new TradeLogException("The " + fieldName + " price must be a positive number.");
+        }
+        return price;
+    }
+
+    /**
+     * Parses and validates a date string in YYYY-MM-DD format.
+     *
+     * @param dateString The raw date string from the user.
+     * @return The trimmed date string if valid.
+     * @throws TradeLogException If the date is not in YYYY-MM-DD format or is not a real date.
+     */
+    public static String parseDate(String dateString) throws TradeLogException {
+        if (dateString == null || dateString.trim().isEmpty()) {
+            throw new TradeLogException("Date cannot be empty.");
+        }
+        try {
+            LocalDate.parse(dateString.trim(), DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        } catch (DateTimeParseException e) {
+            throw new TradeLogException("Invalid date \"" + dateString.trim()
+                    + "\". Please use YYYY-MM-DD format (e.g. 2026-02-18).");
+        }
+        return dateString.trim();
     }
 
     /**
