@@ -49,7 +49,7 @@ public class AddCommand extends Command {
 
         String ticker = ParserUtil.parseTicker(parsedArgs.get("t/"));
         String direction = ParserUtil.parseDirection(parsedArgs.get("dir/"));
-        String date = parsedArgs.get("d/").trim();
+        String date = ParserUtil.parseDate(parsedArgs.get("d/"));
         String strategy = ParserUtil.parseStrategy(parsedArgs.get("strat/"));
 
         this.addTrade = new Trade(ticker, date, direction,

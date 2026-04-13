@@ -75,7 +75,7 @@ public class EditCommand extends Command {
         String newTicker = parsedArgs.containsKey("t/")
                 ? ParserUtil.parseTicker(parsedArgs.get("t/")) : tradeToEdit.getTicker();
         String newDate = parsedArgs.containsKey("d/")
-                ? parsedArgs.get("d/") : tradeToEdit.getDate();
+                ? ParserUtil.parseDate(parsedArgs.get("d/")) : tradeToEdit.getDate();
         String newDir = parsedArgs.containsKey("dir/")
                 ? ParserUtil.parseDirection(parsedArgs.get("dir/")) : tradeToEdit.getDirection();
         double newEntry = parsedArgs.containsKey("e/")
