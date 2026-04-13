@@ -111,7 +111,7 @@ public class EditCommandTest {
     }
 
     @Test
-    public void execute_complexInvalidEdit_fullStateMaintained() {
+    public void execute_complexInvalidEdit_fullStateMaintained() throws TradeLogException {
         EditCommand command = new EditCommand("1 t/MSFT d/2025-01-01 e/not_a_number");
 
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
@@ -122,7 +122,7 @@ public class EditCommandTest {
     }
 
     @Test
-    public void execute_indexOutOfBounds_throwsTradeLogException() {
+    public void execute_indexOutOfBounds_throwsTradeLogException() throws TradeLogException {
         EditCommand command = new EditCommand("10 t/MSFT");
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
     }
@@ -141,5 +141,11 @@ public class EditCommandTest {
         EditCommand command = new EditCommand("1 strat/INVALID");
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
         assertEquals(INIT_STRAT, tradeList.getTrade(0).getStrategy());
+    }
+
+    @Test
+    public void constructor_invalidIndex_throwsTradeLogException() {
+        assertThrows(TradeLogException.class, () -> new EditCommand("0 t/AAPL"));
+        assertThrows(TradeLogException.class, () -> new EditCommand("-1 t/AAPL"));
     }
 }
