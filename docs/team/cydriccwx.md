@@ -2,7 +2,7 @@
 
 ## Overview
 
-TradeLog is a Command Line Interface (CLI) application designed for proprietary financial traders who rely heavily on mathematical data to refine their trading systems. It provides a fast, keyboard-centric way to systematically log trades, replacing slow and error-prone spreadsheet entry. The application automatically calculates critical trading metricsâ€”such as Risk:Reward (R) ratios, Win Rates, and Expected Value (EV)â€”allowing traders to identify their mathematical edge with precision. TradeLog is built in Java and features an immediate-save, localized file architecture to ensure no data is lost during high-stress trading sessions.
+TradeLog is a Command Line Interface (CLI) application designed for proprietary financial traders who rely heavily on mathematical data to refine their trading systems. It provides a fast, keyboard-centric way to systematically log trades, replacing slow and error-prone spreadsheet entry. The application automatically calculates critical trading metrics such as Risk:Reward (R) ratios, Win Rates, and Expected Value (EV), allowing traders to identify their mathematical edge with precision. TradeLog is built in Java and features an immediate-save, localized file architecture to ensure no data is lost during high-stress trading sessions.
 
 ## Summary of Contributions
 
@@ -173,7 +173,7 @@ It takes the raw string, identifies the user's intent, extracts the variable dat
 ##### Component-Level Description
 
 ```
-Â«utilityÂ»
+«utility»
 Parser
   |
   |-- parseCommand(userInput)
@@ -181,14 +181,14 @@ Parser
         |-- routes to specific Command constructor
         \-- throws TradeLogException on unknown command
 
-Â«utilityÂ»
+«utility»
 ArgumentTokeniser
   |
   \-- tokenise(userInput, prefixes)
         |
         \-- returns HashMap<String, String> of prefix-value pairs
 
-Â«utilityÂ»
+«utility»
 ParserUtil
   |
   |-- parsePrice(priceString, fieldName)
@@ -211,7 +211,6 @@ The general parsing sequence for a complex command follows these steps:
 
 5. Once fully validated, the fully instantiated `Command` object is returned to the logic manager.
 
-![Parser Sequence Diagram](diagrams/parser-sequence.png)
 
 ##### Design Rationale
 
