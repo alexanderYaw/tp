@@ -10,6 +10,9 @@ import tradelog.logic.command.ExitCommand;
 import tradelog.logic.command.ListCommand;
 import tradelog.logic.command.SummaryCommand;
 import tradelog.logic.command.FilterCommand;
+import tradelog.logic.command.EncryptCommand;
+import tradelog.logic.command.UndoCommand;
+import tradelog.logic.command.SetModeCommand; // Import added
 
 /**
  * Parses raw user input and translates it into executable Command objects.
@@ -24,7 +27,7 @@ public class Parser {
      * @throws TradeLogException If the command is unknown or arguments are invalid.
      */
     public static Command parseCommand(String userInput) throws TradeLogException {
-        String[] splitInput = userInput.trim().split(" ", 2);
+        String[] splitInput = userInput.trim().split("\\s+", 2);
         String commandWord = splitInput[0].toLowerCase();
         String arguments = splitInput.length > 1 ? splitInput[1] : "";
 
@@ -36,6 +39,9 @@ public class Parser {
         case "filter" -> new FilterCommand(arguments);
         case "compare" -> new CompareCommand();
         case "summary" -> new SummaryCommand();
+        case "encrypt" -> new EncryptCommand(arguments);
+        case "undo" -> new UndoCommand();
+        case "mode" -> new SetModeCommand(arguments);
         case "exit" -> new ExitCommand();
         default -> throw new TradeLogException(
                 "Unknown command: '" + commandWord + "'. Please try again.");

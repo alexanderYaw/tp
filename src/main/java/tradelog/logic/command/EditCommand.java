@@ -1,10 +1,12 @@
 package tradelog.logic.command;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 import tradelog.exception.TradeLogException;
 import tradelog.logic.parser.ArgumentTokeniser;
 import tradelog.logic.parser.ParserUtil;
+import tradelog.model.ModeManager;
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
@@ -18,7 +20,7 @@ public class EditCommand extends Command {
 
     /** All possible prefixes that can be used for editing. */
     private static final String[] ACCEPTED_PREFIXES = {
-        "t/", "d/", "dir/", "e/", "x/", "s/", "o/", "strat/"
+        "t/", "d/", "dir/", "e/", "x/", "s/", "strat/"
     };
 
     private final int targetIndex;
@@ -35,9 +37,14 @@ public class EditCommand extends Command {
         if (trimmedArgs.isEmpty()) {
             throw new TradeLogException("Please specify a trade index to edit.");
         }
+
         String[] parts = trimmedArgs.split(" ", 2);
         try {
-            this.targetIndex = Integer.parseInt(parts[0]) - 1;
+            int inputIndex = Integer.parseInt(parts[0]);
+            if (inputIndex <= 0) {
+                throw new TradeLogException("Index must be a positive integer (1, 2, 3...).");
+            }
+            this.targetIndex = inputIndex - 1;
         } catch (NumberFormatException e) {
             throw new TradeLogException("The trade index must be a valid number.");
         }
@@ -64,18 +71,29 @@ public class EditCommand extends Command {
         assert storage != null : "storage should not be null when executing edit";
         assert targetIndex >= 0 : "targetIndex should be 0 or greater (0-based)";
 
-        if (targetIndex >= tradeList.size()) {
+        if (targetIndex < 0 || targetIndex >= tradeList.size()) {
             throw new TradeLogException("Trade index out of bounds.");
         }
 
         Trade tradeToEdit = tradeList.getTrade(targetIndex);
         assert tradeToEdit != null : "Trade object to edit should not be null";
 
+        // Mode logic check: Prevent editing historical trades in LIVE mode
+        if (ModeManager.getInstance().isLive()) {
+            LocalDate tradeDate = LocalDate.parse(tradeToEdit.getDate());
+            if (!tradeDate.equals(LocalDate.now())) {
+                throw new TradeLogException("LIVE Mode: Historical trades cannot be edited.");
+            }
+            if (parsedArgs.containsKey("d/")) {
+                throw new TradeLogException("LIVE Mode: Date modification is locked.");
+            }
+        }
+
         // 1. Parse and stage updated values in local variables (Pre-computation)
         String newTicker = parsedArgs.containsKey("t/")
                 ? ParserUtil.parseTicker(parsedArgs.get("t/")) : tradeToEdit.getTicker();
         String newDate = parsedArgs.containsKey("d/")
-                ? parsedArgs.get("d/") : tradeToEdit.getDate();
+                ? ParserUtil.parseDate(parsedArgs.get("d/")) : tradeToEdit.getDate();
         String newDir = parsedArgs.containsKey("dir/")
                 ? ParserUtil.parseDirection(parsedArgs.get("dir/")) : tradeToEdit.getDirection();
         double newEntry = parsedArgs.containsKey("e/")
@@ -84,28 +102,31 @@ public class EditCommand extends Command {
                 ? ParserUtil.parsePrice(parsedArgs.get("x/"), "Exit") : tradeToEdit.getExitPrice();
         double newStop = parsedArgs.containsKey("s/")
                 ? ParserUtil.parsePrice(parsedArgs.get("s/"), "Stop Loss") : tradeToEdit.getStopLossPrice();
-        String newOutcome = parsedArgs.getOrDefault("o/", tradeToEdit.getOutcome());
         String newStrat = parsedArgs.containsKey("strat/")
                 ? ParserUtil.parseStrategy(parsedArgs.get("strat/"))
                 : tradeToEdit.getStrategy();
 
-        // 2. Business Logic Validation (Reusing teammate's methods)
-        // Step A: Ensure entry and stop loss are not the same
+        // 2. Business Logic Validation
         ParserUtil.validatePrices(newEntry, newStop);
+        ParserUtil.validateStopLoss(newDir, newEntry, newStop);
 
-        // Step B: Ensure stop loss is on the correct side
-        // Note: teammate's validateStopLoss expects lowercase "long"/"short"
-        ParserUtil.validateStopLoss(newDir.toLowerCase(), newEntry, newStop);
+        // Save state only after all parsing/validation succeeds
+        UndoCommand.saveState(tradeList);
 
-        // 3. Atomicity: Commit changes only if ALL previous steps (Parsing & Validation) passed
+        // 3. Atomicity: Commit changes
         tradeToEdit.setTicker(newTicker);
         tradeToEdit.setDate(newDate);
         tradeToEdit.setDirection(newDir);
         tradeToEdit.setEntryPrice(newEntry);
         tradeToEdit.setExitPrice(newExit);
         tradeToEdit.setStopLossPrice(newStop);
-        tradeToEdit.setOutcome(newOutcome);
         tradeToEdit.setStrategy(newStrat);
+
+        try {
+            storage.saveTrades(tradeList);
+        } catch (Exception e) {
+            ui.showError("Warning: Changes made but failed to save to disk: " + e.getMessage());
+        }
 
         ui.showTradeUpdated(targetIndex + 1);
         ui.printTrade(tradeToEdit);

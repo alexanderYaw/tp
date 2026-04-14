@@ -2,7 +2,7 @@
 
 ## Overview
 
-TradeLog is a Command Line Interface (CLI) application designed for proprietary financial traders who rely heavily on mathematical data to refine their trading systems. It provides a fast, keyboard-centric way to systematically log trades, replacing slow and error-prone spreadsheet entry. The application automatically calculates critical trading metrics—such as Risk:Reward (R) ratios, Win Rates, and Expected Value (EV)—allowing traders to identify their mathematical edge with precision. TradeLog is built in Java and features an immediate-save, localized file architecture to ensure no data is lost during high-stress trading sessions.
+TradeLog is a Command Line Interface (CLI) application designed for proprietary financial traders who rely heavily on mathematical data to refine their trading systems. It provides a fast, keyboard-centric way to systematically log trades, replacing slow and error-prone spreadsheet entry. The application automatically calculates critical trading metrics such as Risk:Reward (R) ratios, Win Rates, and Expected Value (EV), allowing traders to identify their mathematical edge with precision. TradeLog is built in Java and features an immediate-save, localized file architecture to ensure no data is lost during high-stress trading sessions.
 
 ## Summary of Contributions
 
@@ -211,12 +211,9 @@ The general parsing sequence for a complex command follows these steps:
 
 5. Once fully validated, the fully instantiated `Command` object is returned to the logic manager.
 
-![Parser Sequence Diagram](diagrams/parser-sequence.png)
 
 ##### Design Rationale
 
 **Centralisation of Validation:** An alternative considered was placing validation logic directly inside the respective `Command` classes (e.g., hardcoding the stop-loss verification inside `AddCommand`). This was rejected because it would lead to heavy code duplication across other commands that mutate trade states, such as `EditCommand`. Centralising this in `ParserUtil` keeps the commands as thin orchestrators and ensures mathematical trading rules are uniformly applied.
 
 **Tokenisation Data Structure:** `ArgumentTokeniser` returns a `HashMap<String, String>` rather than a `List` of pairs. This was chosen to provide O(1) lookup time when commands need to retrieve their required parameters by prefix key, improving code readability and performance during high-speed data entry.
-
-

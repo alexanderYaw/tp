@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import tradelog.exception.TradeLogException;
+import tradelog.model.ModeManager; // Added import
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
@@ -16,14 +17,12 @@ import tradelog.ui.Ui;
  * Test suite for EditCommand validation and atomic updates.
  */
 public class EditCommandTest {
-    // Constants to satisfy IDE static analysis and ensure consistent testing
     private static final String INIT_TICKER = "AAPL";
     private static final String INIT_DATE = "2023-10-10";
-    private static final String INIT_DIR = "long";
+    private static final String INIT_DIR = "Long";
     private static final double INIT_ENTRY = 150.0;
     private static final double INIT_EXIT = 160.0;
     private static final double INIT_STOP = 140.0;
-    private static final String INIT_OUTCOME = "Open";
     private static final String INIT_STRAT = "Trend";
 
     private TradeList tradeList;
@@ -31,83 +30,80 @@ public class EditCommandTest {
     private Ui ui;
 
     @BeforeEach
-    public void setUp() {
+    public void setUp() throws TradeLogException {
         tradeList = new TradeList();
         Trade initialTrade = new Trade(INIT_TICKER, INIT_DATE, INIT_DIR,
-                INIT_ENTRY, INIT_EXIT, INIT_STOP, INIT_OUTCOME, INIT_STRAT);
+                INIT_ENTRY, INIT_EXIT, INIT_STOP, INIT_STRAT);
         tradeList.addTrade(initialTrade);
 
         ui = new Ui();
+        // Use a clean path for testing and ensure no encryption conflicts
         storage = new Storage("test_edit_storage.txt");
+        storage.setPassword("testpassword"); // Match your StorageTest behavior
+
+        // Reset ModeManager to BACKTEST before each test for consistency
+        ModeManager.getInstance().setLive(false);
     }
 
-    /**
-     * Performs a deep state comparison to verify Atomicity.
-     * Arguments are wrapped to comply with 120-character line length limit.
-     */
     private void assertTradeUnchanged(int index, String ticker, String date, String dir,
-                                      double entry, double exit, double stop,
-                                      String outcome, String strat) {
+                                      double entry, double exit, double stop, String strat) {
         Trade current = tradeList.getTrade(index);
-        assertEquals(ticker, current.getTicker(), "Atomicity Failure: Ticker modified");
-        assertEquals(date, current.getDate(), "Atomicity Failure: Date modified");
-        assertEquals(dir.toLowerCase(), current.getDirection().toLowerCase(), "Atomicity Failure: Direction modified");
-        assertEquals(entry, current.getEntryPrice(), "Atomicity Failure: Entry price modified");
-        assertEquals(exit, current.getExitPrice(), "Atomicity Failure: Exit price modified");
-        assertEquals(stop, current.getStopLossPrice(), "Atomicity Failure: Stop loss modified");
-        assertEquals(outcome, current.getOutcome(), "Atomicity Failure: Outcome modified");
-        assertEquals(strat, current.getStrategy(), "Atomicity Failure: Strategy modified");
+        assertEquals(ticker, current.getTicker());
+        assertEquals(date, current.getDate());
+        assertEquals(dir.toLowerCase(), current.getDirection().toLowerCase());
+        assertEquals(entry, current.getEntryPrice());
+        assertEquals(exit, current.getExitPrice());
+        assertEquals(stop, current.getStopLossPrice());
+        assertEquals(strat, current.getStrategy());
     }
 
     @Test
     public void execute_validEdit_tradeUpdatedSuccessfully() throws TradeLogException {
-        EditCommand command = new EditCommand("1 x/175.0 o/WIN");
+        EditCommand command = new EditCommand("1 x/175.0");
         command.execute(tradeList, ui, storage);
 
         Trade updatedTrade = tradeList.getTrade(0);
         assertEquals(175.0, updatedTrade.getExitPrice());
-        assertEquals("WIN", updatedTrade.getOutcome());
     }
 
     @Test
     public void execute_editSecondTrade_success() throws TradeLogException {
         String newTicker = "MSFT";
-        Trade secondTrade = new Trade("TSLA", "2024-01-01", "short", 250.0, 230.0, 260.0, "WIN", "Swing");
+        Trade secondTrade = new Trade("TSLA", "2024-01-01", "Short",
+                250.0, 230.0, 260.0, "Pullback");
         tradeList.addTrade(secondTrade);
 
         EditCommand command = new EditCommand("2 t/" + newTicker);
         command.execute(tradeList, ui, storage);
 
-        // Line wrapped to satisfy Checkstyle 120-char limit
         assertTradeUnchanged(0, INIT_TICKER, INIT_DATE, INIT_DIR, INIT_ENTRY,
-                INIT_EXIT, INIT_STOP, INIT_OUTCOME, INIT_STRAT);
+                INIT_EXIT, INIT_STOP, INIT_STRAT);
 
-        assertTradeUnchanged(1, newTicker, "2024-01-01", "short", 250.0,
-                230.0, 260.0, "WIN", "Swing");
+        assertTradeUnchanged(1, newTicker, "2024-01-01", "Short", 250.0,
+                230.0, 260.0, "Pullback");
     }
 
     @Test
-    public void execute_invalidDirectionString_throwsTradeLogException() {
+    public void execute_invalidDirectionString_throwsTradeLogException() throws TradeLogException {
         EditCommand command = new EditCommand("1 dir/invalid_direction");
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
         assertEquals(INIT_DIR.toLowerCase(), tradeList.getTrade(0).getDirection().toLowerCase());
     }
 
     @Test
-    public void execute_invalidLongRisk_throwsTradeLogException() {
+    public void execute_invalidLongRisk_throwsTradeLogException() throws TradeLogException {
         EditCommand command = new EditCommand("1 s/160.0");
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
         assertEquals(INIT_STOP, tradeList.getTrade(0).getStopLossPrice());
     }
 
     @Test
-    public void execute_atomicUpdateFailure_tickerNotChanged() {
+    public void execute_atomicUpdateFailure_tickerNotChanged() throws TradeLogException {
         EditCommand command = new EditCommand("1 t/TSLA s/160.0");
         assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
 
-        // Line wrapped to satisfy Checkstyle 120-char limit
         assertTradeUnchanged(0, INIT_TICKER, INIT_DATE, INIT_DIR, INIT_ENTRY,
-                INIT_EXIT, INIT_STOP, INIT_OUTCOME, INIT_STRAT);
+                INIT_EXIT, INIT_STOP, INIT_STRAT);
     }
 
     @Test
@@ -118,7 +114,7 @@ public class EditCommandTest {
 
         // Line wrapped to satisfy Checkstyle 120-char limit
         assertTradeUnchanged(0, INIT_TICKER, INIT_DATE, INIT_DIR, INIT_ENTRY,
-                INIT_EXIT, INIT_STOP, INIT_OUTCOME, INIT_STRAT);
+                INIT_EXIT, INIT_STOP, INIT_STRAT);
     }
 
     @Test
@@ -130,9 +126,41 @@ public class EditCommandTest {
     @Test
     public void execute_strategyShortcut_strategyExpandedSuccessfully() throws TradeLogException {
         EditCommand command = new EditCommand("1 strat/MTR");
-
         command.execute(tradeList, ui, storage);
-
         assertEquals("Major Trend Reversal", tradeList.getTrade(0).getStrategy());
+    }
+
+    @Test
+    public void constructor_invalidIndex_throwsTradeLogException() {
+        assertThrows(TradeLogException.class, () -> new EditCommand("0 t/AAPL"));
+        assertThrows(TradeLogException.class, () -> new EditCommand("-1 t/AAPL"));
+        assertThrows(TradeLogException.class, () -> new EditCommand("abc t/AAPL"));
+    }
+
+    @Test
+    public void constructor_emptyArguments_throwsTradeLogException() {
+        assertThrows(TradeLogException.class, () -> new EditCommand(""));
+        assertThrows(TradeLogException.class, () -> new EditCommand("   "));
+    }
+
+    @Test
+    public void constructor_noPrefixes_throwsTradeLogException() {
+        assertThrows(TradeLogException.class, () -> new EditCommand("1"));
+    }
+
+    // Added ModeManager Assertions
+
+    /**
+     * Verifies that editing historical trades in LIVE mode is restricted.
+     */
+    @Test
+    public void execute_liveModeEditHistorical_throwsTradeLogException() throws TradeLogException {
+        ModeManager.getInstance().setLive(true);
+        EditCommand command = new EditCommand("1 t/TSLA");
+
+        assertThrows(TradeLogException.class, () -> command.execute(tradeList, ui, storage));
+
+        // Ensure state remains INIT_TICKER
+        assertEquals(INIT_TICKER, tradeList.getTrade(0).getTicker());
     }
 }

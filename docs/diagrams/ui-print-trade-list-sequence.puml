@@ -1,0 +1,44 @@
+@startuml
+hide footbox
+skinparam Style strictuml
+skinparam SequenceMessageAlign center
+
+participant ":Ui" as Ui
+participant "tl:TradeList" as TradeList
+
+activate Ui
+note over Ui
+    prints divider before
+    evaluating the trade list
+end note
+
+Ui -> TradeList : isEmpty()
+activate TradeList
+TradeList --> Ui : isEmpty
+deactivate TradeList
+
+alt tradeList is empty
+    note over Ui : prints empty-list message
+else tradeList is not empty
+    Ui -> TradeList : size()
+    activate TradeList
+    TradeList --> Ui : size
+    deactivate TradeList
+
+    loop for each trade
+        Ui -> TradeList : getTrade(i)
+        activate TradeList
+        TradeList --> Ui : trade
+        deactivate TradeList
+    end
+
+    note over Ui : prints numbered trades
+end
+
+note over Ui
+    prints divider before
+    returning from the method
+end note
+
+deactivate Ui
+@enduml

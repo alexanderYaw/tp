@@ -1,10 +1,12 @@
 package tradelog.logic.command;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 
 import tradelog.exception.TradeLogException;
 import tradelog.logic.parser.ArgumentTokeniser;
 import tradelog.logic.parser.ParserUtil;
+import tradelog.model.ModeManager;
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
@@ -18,7 +20,7 @@ public class AddCommand extends Command {
 
     /** The required prefixes for the add command. */
     public static final String[] REQUIRED_PREFIXES = {
-        "t/", "d/", "dir/", "e/", "x/", "s/", "o/", "strat/"};
+        "t/", "d/", "dir/", "e/", "x/", "s/", "strat/"};
 
     private final Trade addTrade;
 
@@ -45,16 +47,15 @@ public class AddCommand extends Command {
         double stopLossPrice = ParserUtil.parsePrice(parsedArgs.get("s/"), "Stop Loss");
 
         ParserUtil.validatePrices(entryPrice, stopLossPrice);
-        ParserUtil.validateStopLoss(parsedArgs.get("dir/").trim().toLowerCase(), entryPrice, stopLossPrice);
+        ParserUtil.validateStopLoss(parsedArgs.get("dir/").trim(), entryPrice, stopLossPrice);
 
         String ticker = ParserUtil.parseTicker(parsedArgs.get("t/"));
         String direction = ParserUtil.parseDirection(parsedArgs.get("dir/"));
-        String date = parsedArgs.get("d/").trim();
-        String outcome = parsedArgs.get("o/").trim();
+        String date = ParserUtil.parseDate(parsedArgs.get("d/"));
         String strategy = ParserUtil.parseStrategy(parsedArgs.get("strat/"));
 
         this.addTrade = new Trade(ticker, date, direction,
-                entryPrice, exitPrice, stopLossPrice, outcome, strategy);
+                entryPrice, exitPrice, stopLossPrice, strategy);
 
         assert addTrade.getTicker().equals(ticker) : "Ticker should match parsed value";
         assert addTrade.getEntryPrice() == entryPrice : "Entry price should match parsed value";
@@ -74,7 +75,27 @@ public class AddCommand extends Command {
         assert tradeList != null : "TradeList should not be null when executing add";
         assert ui != null : "Ui should not be null when executing add";
         assert addTrade != null : "addTrade object should have been successfully created in constructor";
+
+        ModeManager modeManager = ModeManager.getInstance(); // This handles initialization safely
+        LocalDate today = LocalDate.now();
+
+        if (modeManager.isLive()) {
+            if (!LocalDate.parse(addTrade.getDate()).equals(today)) {
+                throw new TradeLogException("LIVE Mode: Only today's trades can be added.");
+            }
+        }
+
+        // SAFE ASSERTION: No side effects because modeManager is already initialized
+        assert !modeManager.isLive() || addTrade.getDate().equals(today.toString())
+                : "Trade date must be today when in LIVE mode";
+
         int initialSize = tradeList.size();
+
+        if (tradeList.contains(addTrade)) {
+            throw new TradeLogException("Duplicate trade detected. This trade already exists.");
+        }
+
+        UndoCommand.saveState(tradeList);
 
         tradeList.addTrade(addTrade);
 
@@ -84,6 +105,12 @@ public class AddCommand extends Command {
         assert lastTrade.getTicker().equals(addTrade.getTicker()) : "Last trade ticker should match added trade";
         assert lastTrade.getEntryPrice() == addTrade.getEntryPrice() : "Last trade entryPrice should match added trade";
         assert lastTrade.getStrategy().equals(addTrade.getStrategy()) : "Last trade strategy should match added trade";
+
+        try {
+            storage.saveTrades(tradeList);
+        } catch (Exception e) {
+            ui.showError("Warning: Changes made but failed to save to disk: " + e.getMessage());
+        }
 
         ui.printTrade(addTrade);
         ui.showTradeAdded();

@@ -1,0 +1,34 @@
+@startuml
+hide footbox
+skinparam Style strictuml
+skinparam SequenceMessageAlign center
+
+participant ":TradeLog" as TradeLog
+participant "<<class>>\nParser" as Parser
+participant "lc:ListCommand" as ListCommand
+participant ":Ui" as Ui
+participant "tl:TradeList" as TradeList
+
+activate TradeLog
+
+TradeLog -> Parser : parseCommand("list")
+activate Parser
+create ListCommand
+Parser -> ListCommand : new ListCommand()
+activate ListCommand
+ListCommand --> Parser : lc
+deactivate ListCommand
+Parser --> TradeLog : lc
+deactivate Parser
+
+TradeLog -> ListCommand : execute(...)
+activate ListCommand
+ListCommand -> Ui : printTradeList(tradeList)
+activate Ui
+ref over Ui, TradeList : Print trade list
+Ui --> ListCommand
+deactivate Ui
+ListCommand --> TradeLog
+deactivate ListCommand
+deactivate TradeLog
+@enduml

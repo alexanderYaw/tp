@@ -1,7 +1,9 @@
 package tradelog.ui;
 
+import org.junit.jupiter.api.BeforeEach; // Added import
 import org.junit.jupiter.api.Test;
 import tradelog.logic.command.StrategyStats;
+import tradelog.model.ModeManager; // Added import
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 
@@ -10,6 +12,7 @@ import java.io.PrintStream;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class UiTest {
@@ -17,10 +20,19 @@ class UiTest {
     private String captureOutput(Runnable action) {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         PrintStream original = System.out;
-        System.setOut(new PrintStream(buffer));
-        action.run();
-        System.setOut(original);
+        try {
+            System.setOut(new PrintStream(buffer));
+            action.run();
+        } finally {
+            System.setOut(original);
+        }
         return buffer.toString();
+    }
+
+    @BeforeEach
+    public void setUp() {
+        // Reset ModeManager to BACKTEST before each test for consistency
+        ModeManager.getInstance().setLive(false);
     }
 
     @Test
@@ -36,10 +48,26 @@ class UiTest {
         Ui ui = new Ui();
         TradeList tradeList = new TradeList();
         tradeList.addTrade(new Trade("AAPL", "2026-02-18",
-                "Long", 180.0, 190.0, 170.0, "Win", "Breakout"));
+                "Long", 180.0, 190.0, 170.0, "Breakout"));
         String output = captureOutput(() -> ui.printTradeList(tradeList));
         assertTrue(output.contains("AAPL"));
         assertTrue(output.contains("1."));
+    }
+
+    @Test
+    public void printIndexedTrades_selectedIndices_showsOriginalNumbering() {
+        Ui ui = new Ui();
+        TradeList tradeList = new TradeList();
+        tradeList.addTrade(new Trade("AAPL", "2026-02-18",
+                "Long", 180.0, 190.0, 170.0, "Breakout"));
+        tradeList.addTrade(new Trade("TSLA", "2026-02-19",
+                "Short", 400.0, 380.0, 410.0, "Pullback"));
+
+        String output = captureOutput(() -> ui.printIndexedTrades(tradeList, java.util.List.of(1)));
+
+        assertTrue(output.contains("2."));
+        assertTrue(output.contains("TSLA"));
+        assertFalse(output.contains("1. AAPL"));
     }
 
     @Test
@@ -53,8 +81,9 @@ class UiTest {
     public void showWelcome_containsCommandList() {
         Ui ui = new Ui();
         String output = captureOutput(ui::showWelcome);
+        // Update mode
         assertTrue(output.contains(
-                "Commands: add, list, edit, delete, filter, compare, summary, exit"));
+                "Commands: add, list, edit, delete, filter, compare, summary, encrypt, undo, mode, exit"));
     }
 
     @Test
@@ -119,7 +148,7 @@ class UiTest {
     public void printTrade_containsTradeSummary() {
         Ui ui = new Ui();
         Trade trade = new Trade("AAPL", "2026-02-18",
-                "Long", 180.0, 190.0, 170.0, "Win", "Breakout");
+                "Long", 180.0, 190.0, 170.0, "Breakout");
         String output = captureOutput(() -> ui.printTrade(trade));
         assertTrue(output.contains("Trade Summary:"));
         assertTrue(output.contains("AAPL"));
@@ -143,5 +172,33 @@ class UiTest {
         assertTrue(output.contains("Average Win: 2.00R"));
         assertTrue(output.contains("Average Loss: 1.00R"));
         assertTrue(output.contains("EV: +0.500R"));
+    }
+
+    @Test
+    public void showSummary_negativeValues_formatsWithSingleMinusSign() {
+        Ui ui = new Ui();
+
+        String output = captureOutput(() -> ui.showSummary(2, 0.0, 0.0,
+                1.25, -1.25, -2.5));
+
+        assertTrue(output.contains("Overall EV: -1.25R"));
+        assertTrue(output.contains("Total R: -2.50R"));
+        assertFalse(output.contains("--1.25R"), "Should not have double negative signs");
+        assertFalse(output.contains("--2.50R"), "Should not have double negative signs");
+    }
+
+    @Test
+    public void showStrategyComparison_negativeEv_formatsWithSingleMinusSign() {
+        Ui ui = new Ui();
+        Map<String, StrategyStats> strategyComparison = new LinkedHashMap<>();
+        StrategyStats breakoutStats = new StrategyStats();
+        breakoutStats.addTrade(-1.0);
+        breakoutStats.addTrade(-0.5);
+        strategyComparison.put("Breakout", breakoutStats);
+
+        String output = captureOutput(() -> ui.showStrategyComparison(strategyComparison));
+
+        assertTrue(output.contains("EV: -0.750R"));
+        assertFalse(output.contains("--0.750R"));
     }
 }

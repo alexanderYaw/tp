@@ -1,12 +1,17 @@
 package tradelog.logic.parser;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import tradelog.exception.TradeLogException;
+import tradelog.model.ModeManager;
 
 /**
  * Utility class containing methods for parsing and validating specific data types.
@@ -15,6 +20,7 @@ import tradelog.exception.TradeLogException;
 public class ParserUtil {
 
     private static final Map<String, String> STRATEGY_SHORTCUTS = createStrategyShortcuts();
+    private static final Map<String, String> CANONICAL_STRATEGY_NAMES = createCanonicalStrategyNames();
     private static final Logger logger = Logger.getLogger(ParserUtil.class.getName());
 
     private ParserUtil() {
@@ -36,20 +42,90 @@ public class ParserUtil {
         return Collections.unmodifiableMap(shortcuts);
     }
 
+    private static Map<String, String> createCanonicalStrategyNames() {
+        Map<String, String> canonicalStrategyNames = new HashMap<>();
+        for (String canonicalStrategyName : STRATEGY_SHORTCUTS.values()) {
+            canonicalStrategyNames.put(toStrategyLookupKey(canonicalStrategyName), canonicalStrategyName);
+        }
+        return Collections.unmodifiableMap(canonicalStrategyNames);
+    }
+
+    private static String normalizeStrategySpacing(String strategy) {
+        return strategy.trim().replaceAll("\\s+", " ");
+    }
+
+    private static String toStrategyLookupKey(String strategy) {
+        return normalizeStrategySpacing(strategy).toUpperCase();
+    }
+
     /**
      * Parses a string representation of a price into a double.
+     * Validates that the input is a positive numerical value.
      *
      * @param priceString The string representing the price.
      * @param fieldName   The name of the field (e.g., "Entry", "Exit") for error messages.
      * @return The parsed double value.
-     * @throws TradeLogException If the string cannot be converted to a valid number.
+     * @throws TradeLogException If the string is null/empty, not a valid number, or not positive.
      */
     public static double parsePrice(String priceString, String fieldName) throws TradeLogException {
+        if (priceString == null || priceString.trim().isEmpty()) {
+            throw new TradeLogException("The " + fieldName + " price cannot be empty.");
+        }
+        double price;
         try {
-            return Double.parseDouble(priceString);
+            price = Double.parseDouble(priceString.trim());
         } catch (NumberFormatException e) {
             throw new TradeLogException("The " + fieldName + " price must be a valid number!");
         }
+        if (Double.isNaN(price) || Double.isInfinite(price)) {
+            throw new TradeLogException("The " + fieldName + " price must be a valid number!");
+        }
+        if (price <= 0) {
+            throw new TradeLogException("The " + fieldName + " price must be a positive number.");
+        }
+        return price;
+    }
+
+    /**
+     * Parses and validates a date string in YYYY-MM-DD format with mode-specific logic.
+     * * Functional Behavior:
+     * 1. If dateString is empty and mode is LIVE, returns today's date.
+     * 2. If mode is LIVE, restricts manual entry to current date only.
+     * 3. If mode is BACKTEST, allows any valid historical date.
+     *
+     * @param dateString The raw date string from the user.
+     * @return The validated or automatically generated date string.
+     * @throws TradeLogException If the date violates operational mode restrictions.
+     */
+    public static String parseDate(String dateString) throws TradeLogException {
+        ModeManager modeManager = ModeManager.getInstance();
+        LocalDate today = LocalDate.now();
+
+        // Functional modification: Auto-fill today's date in LIVE mode if empty
+        if ((dateString == null || dateString.trim().isEmpty())) {
+            if (modeManager.isLive()) {
+                logger.log(Level.INFO, "LIVE mode: Empty date input, defaulting to today.");
+                return today.toString();
+            }
+            throw new TradeLogException("Date cannot be empty in Backtest mode.");
+        }
+
+        String trimmedDate = dateString.trim();
+        LocalDate parsedDate;
+
+        try {
+            parsedDate = LocalDate.parse(trimmedDate, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        } catch (DateTimeParseException e) {
+            throw new TradeLogException("Invalid date format. Please use YYYY-MM-DD.");
+        }
+
+        // Functional modification: Strict enforcement for LIVE environment
+        if (modeManager.isLive() && !parsedDate.equals(today)) {
+            throw new TradeLogException("FUNCTIONAL ERROR: Live mode only allows trades for today ("
+                    + today + "). To log historical data, switch to backtest mode.");
+        }
+
+        return trimmedDate;
     }
 
     /**
@@ -57,19 +133,28 @@ public class ParserUtil {
      *
      * @param ticker The raw ticker string.
      * @return The formatted uppercase ticker.
+     * @throws TradeLogException If the ticker is empty.
      */
-    public static String parseTicker(String ticker) {
-        return ticker.trim().toUpperCase();
+    public static String parseTicker(String ticker) throws TradeLogException {
+        String trimmedTicker = ticker.trim();
+        if (trimmedTicker.isEmpty()) {
+            throw new TradeLogException("Ticker cannot be empty.");
+        }
+        return trimmedTicker.toUpperCase();
     }
 
     /**
      * Parses and validates the trade direction.
+     * Validates that the input is not empty and matches 'long' or 'short'.
      *
      * @param direction The raw direction string.
      * @return The formatted direction ("Long" or "Short").
-     * @throws TradeLogException If the direction is not "long" or "short".
+     * @throws TradeLogException If the direction is empty or is not 'long' or 'short'.
      */
     public static String parseDirection(String direction) throws TradeLogException {
+        if (direction == null || direction.trim().isEmpty()) {
+            throw new TradeLogException("Direction cannot be empty (must be 'long' or 'short').");
+        }
         String dir = direction.trim().toLowerCase();
         if (dir.equals("long") || dir.equals("short")) {
             return dir.substring(0, 1).toUpperCase() + dir.substring(1);
@@ -77,25 +162,60 @@ public class ParserUtil {
         throw new TradeLogException("Direction must be exactly 'long' or 'short'!");
     }
 
-    /**
-     * Expands a known strategy shortcut into its full strategy name.
-     *
-     * @param strategy The raw strategy input from the user.
-     * @return The expanded strategy name if a shortcut is recognised, otherwise the trimmed input.
-     */
-    public static String parseStrategy(String strategy) {
-        assert strategy != null : "Strategy should not be null";
+    private static String canonicalizeStrategyIfKnown(String strategy) {
+        String normalizedStrategy = normalizeStrategySpacing(strategy);
+        String strategyLookupKey = toStrategyLookupKey(strategy);
+        String canonicalStrategy = STRATEGY_SHORTCUTS.get(strategyLookupKey);
 
-        String trimmedStrategy = strategy.trim();
-        String expandedStrategy = STRATEGY_SHORTCUTS.getOrDefault(
-                trimmedStrategy.toUpperCase(), trimmedStrategy);
-
-        if (!expandedStrategy.equals(trimmedStrategy)) {
+        if (canonicalStrategy != null) {
             logger.log(Level.INFO, "Expanded strategy shortcut {0} to {1}",
-                    new Object[] {trimmedStrategy, expandedStrategy});
+                    new Object[] {normalizedStrategy, canonicalStrategy});
+            return canonicalStrategy;
         }
 
-        return expandedStrategy;
+        canonicalStrategy = CANONICAL_STRATEGY_NAMES.get(strategyLookupKey);
+        if (canonicalStrategy != null && !canonicalStrategy.equals(normalizedStrategy)) {
+            logger.log(Level.INFO, "Canonicalized strategy name {0} to {1}",
+                    new Object[] {normalizedStrategy, canonicalStrategy});
+        }
+
+        return canonicalStrategy != null ? canonicalStrategy : normalizedStrategy;
+    }
+
+    /**
+     * Expands a known strategy shortcut or canonicalizes a known full strategy name.
+     *
+     * @param strategy The raw strategy input from the user.
+     * @return The canonical strategy name.
+     * @throws TradeLogException If the strategy is blank or not one of the supported values.
+     */
+    public static String parseStrategy(String strategy) throws TradeLogException {
+        assert strategy != null : "Strategy should not be null";
+
+        String normalizedStrategy = normalizeStrategySpacing(strategy);
+        if (normalizedStrategy.isEmpty()) {
+            throw new TradeLogException("Strategy cannot be empty.");
+        }
+
+        String canonicalStrategy = canonicalizeStrategyIfKnown(normalizedStrategy);
+        if (!CANONICAL_STRATEGY_NAMES.containsValue(canonicalStrategy)) {
+            throw new TradeLogException("Invalid strategy. Use one of the supported strategy shortcuts "
+                    + "or canonical strategy names shown at startup.");
+        }
+
+        return canonicalStrategy;
+    }
+
+    /**
+     * Canonicalizes a strategy name if it is recognised, otherwise returns the trimmed input.
+     * This is intended for existing stored data where unknown legacy values should not break features.
+     *
+     * @param strategy The stored strategy value.
+     * @return The canonical known strategy name, or the trimmed original string if unknown.
+     */
+    public static String canonicalizeStoredStrategy(String strategy) {
+        assert strategy != null : "Strategy should not be null";
+        return canonicalizeStrategyIfKnown(strategy);
     }
 
     /**
@@ -132,11 +252,11 @@ public class ParserUtil {
      */
     public static void validateStopLoss(String direction, double entryPrice, double stopLossPrice)
             throws TradeLogException {
-        if (direction.equals("long") && stopLossPrice > entryPrice) {
+        if (direction.equalsIgnoreCase("long") && stopLossPrice > entryPrice) {
             throw new TradeLogException(
                     "Invalid Trade: For a Long position, Stop Loss must be below Entry Price.");
         }
-        if (direction.equals("short") && stopLossPrice < entryPrice) {
+        if (direction.equalsIgnoreCase("short") && stopLossPrice < entryPrice) {
             throw new TradeLogException(
                     "Invalid Trade: For a Short position, Stop Loss must be above Entry Price.");
         }

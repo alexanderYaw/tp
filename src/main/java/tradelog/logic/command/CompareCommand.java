@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import tradelog.logic.parser.ParserUtil;
+import tradelog.model.ModeManager;
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
@@ -29,6 +31,9 @@ public class CompareCommand extends Command {
         assert tradeList != null : "TradeList should not be null when executing compare";
         assert ui != null : "Ui should not be null when executing compare";
 
+        // obtain ModeManager instance that has the same mode as current mode
+        ModeManager modeManager = ModeManager.getInstance();
+
         if (tradeList.isEmpty()) {
             logger.log(Level.INFO, "Compare command executed on an empty trade list.");
             ui.showSummaryEmpty();
@@ -41,12 +46,14 @@ public class CompareCommand extends Command {
             Trade trade = tradeList.getTrade(i);
             assert trade != null : "Trade at index " + i + " should not be null";
 
-            String strategy = trade.getStrategy();
+            String strategy = ParserUtil.canonicalizeStoredStrategy(trade.getStrategy());
             StrategyStats strategyStats = strategyComparison.computeIfAbsent(
                     strategy, unused -> new StrategyStats());
             strategyStats.addTrade(trade.getRiskRewardRatio());
         }
 
+        // JUnit Test
+        assert modeManager != null : "ModeManager should be initialized";
         assert !strategyComparison.isEmpty() : "Strategy comparison should contain at least one entry";
 
         logger.log(Level.INFO, "Displaying comparison for {0} strategies.",

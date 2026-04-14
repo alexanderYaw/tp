@@ -1,10 +1,15 @@
 package tradelog.logic.parser;
 
+import org.junit.jupiter.api.BeforeEach; // Added import
 import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 
+import tradelog.exception.TradeLogException;
+import tradelog.model.ModeManager; // Added import
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -12,6 +17,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Ensures that user input strings are correctly split into mapped arguments.
  */
 public class ArgumentTokeniserTest {
+
+    @BeforeEach
+    public void setUp() {
+        // Reset ModeManager to BACKTEST before each test for consistency
+        ModeManager.getInstance().setLive(false);
+    }
 
     /**
      * Tests if the tokeniser correctly extracts values when multiple valid prefixes are present.
@@ -57,5 +68,34 @@ public class ArgumentTokeniserTest {
         assertEquals("TSLA", result.get("t/"));
         assertEquals("2026-02-18", result.get("d/"));
         assertFalse(result.containsKey("e/"));
+    }
+
+    @Test
+    public void tokenise_unknownPrefix_throwsTradeLogException() {
+        String[] prefixes = {"t/", "e/", "x/"};
+        String input = "t/AAPL e/150.5 x/160.0 r/2";
+
+        TradeLogException exception = assertThrows(TradeLogException.class,
+                () -> ArgumentTokeniser.tokenise(input, prefixes));
+        assertTrue(exception.getMessage().contains("Unrecognised prefix: r/"));
+    }
+
+    @Test
+    public void tokenise_multipleUnknownPrefixes_throwsTradeLogException() {
+        String[] prefixes = {"t/"};
+        String input = "t/AAPL foo/bar";
+
+        TradeLogException exception = assertThrows(TradeLogException.class,
+                () -> ArgumentTokeniser.tokenise(input, prefixes));
+        assertTrue(exception.getMessage().contains("Unrecognised prefix: foo/"));
+    }
+
+    @Test
+    public void tokenise_allKnownPrefixes_doesNotThrow() {
+        String[] prefixes = {"t/", "e/", "x/"};
+        String input = "t/AAPL e/150.5 x/160.0";
+
+        HashMap<String, String> result = ArgumentTokeniser.tokenise(input, prefixes);
+        assertEquals(3, result.size());
     }
 }

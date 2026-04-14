@@ -1,6 +1,7 @@
 package tradelog.logic.command;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -8,6 +9,7 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import tradelog.model.ModeManager; // Added import
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
@@ -42,6 +44,9 @@ public class CompareCommandTest {
         tradeList = new TradeList();
         dummyStorage = new Storage("dummy_compare_storage.txt");
         mockUi = new MockUi();
+
+        // Reset ModeManager to BACKTEST before each test for consistency
+        ModeManager.getInstance().setLive(false);
     }
 
     @Test
@@ -56,11 +61,11 @@ public class CompareCommandTest {
     @Test
     public void execute_populatedList_groupsTradesByStrategy() {
         tradeList.addTrade(new Trade("AAPL", "2026-03-01", "Long",
-                100, 120, 90, "Win", "Breakout"));
+                100, 120, 90, "Breakout"));
         tradeList.addTrade(new Trade("TSLA", "2026-03-02", "Long",
-                100, 95, 90, "Loss", "Breakout"));
+                100, 95, 90, "Breakout"));
         tradeList.addTrade(new Trade("MSFT", "2026-03-03", "Long",
-                100, 115, 90, "Win", "Pullback"));
+                100, 115, 90, "Pullback"));
 
         CompareCommand command = new CompareCommand();
         command.execute(tradeList, mockUi, dummyStorage);
@@ -80,5 +85,71 @@ public class CompareCommandTest {
         assertEquals(1.5, pullbackStats.getAverageWin(), 0.001);
         assertEquals(0.0, pullbackStats.getAverageLoss(), 0.001);
         assertEquals(1.5, pullbackStats.getExpectedValue(), 0.001);
+    }
+
+    @Test
+    public void execute_caseVariantKnownStrategy_groupsTradesUnderCanonicalName() {
+        tradeList.addTrade(new Trade("AAPL", "2026-03-01", "Long",
+                100, 120, 90, "Breakout"));
+        tradeList.addTrade(new Trade("TSLA", "2026-03-02", "Long",
+                100, 95, 90, "breakout"));
+        tradeList.addTrade(new Trade("MSFT", "2026-03-03", "Long",
+                100, 115, 90, "BB"));
+
+        CompareCommand command = new CompareCommand();
+        command.execute(tradeList, mockUi, dummyStorage);
+
+        assertEquals(1, mockUi.capturedComparison.size());
+
+        StrategyStats breakoutStats = mockUi.capturedComparison.get("Breakout");
+        assertEquals(3, breakoutStats.getTradeCount());
+        assertEquals(66.667, breakoutStats.getWinRate(), 0.001);
+    }
+
+    // Added ModeManager Assertions
+
+    /**
+     * Verifies that CompareCommand works correctly regardless of whether LIVE mode is active,
+     * as it is a read-only analysis command.
+     */
+    @Test
+    public void execute_liveMode_operatesCorrectly() {
+        ModeManager.getInstance().setLive(true);
+        tradeList.addTrade(new Trade("AAPL", "2026-03-01", "Long",
+                100, 120, 90, "Breakout"));
+
+        CompareCommand command = new CompareCommand();
+        command.execute(tradeList, mockUi, dummyStorage);
+
+        assertEquals(1, mockUi.capturedComparison.size(), "CompareCommand should work in LIVE mode.");
+
+        //avoid data race
+        ModeManager.getInstance().setLive(false);
+    }
+
+    @Test
+    public void execute_spacingVariantKnownStrategy_groupsTradesUnderCanonicalName() {
+        tradeList.addTrade(new Trade("AAPL", "2026-03-01", "Long",
+                100, 120, 90, "  Major   Trend Reversal  "));
+        tradeList.addTrade(new Trade("TSLA", "2026-03-02", "Long",
+                100, 95, 90, "mtr"));
+
+        CompareCommand command = new CompareCommand();
+        command.execute(tradeList, mockUi, dummyStorage);
+
+        assertEquals(1, mockUi.capturedComparison.size());
+        assertNotNull(mockUi.capturedComparison.get("Major Trend Reversal"));
+    }
+
+    @Test
+    public void execute_unknownStoredStrategy_preservesTrimmedLegacyName() {
+        tradeList.addTrade(new Trade("AAPL", "2026-03-01", "Long",
+                100, 120, 90, "  Legacy Setup  "));
+
+        CompareCommand command = new CompareCommand();
+        command.execute(tradeList, mockUi, dummyStorage);
+
+        assertEquals(1, mockUi.capturedComparison.size());
+        assertNotNull(mockUi.capturedComparison.get("Legacy Setup"));
     }
 }

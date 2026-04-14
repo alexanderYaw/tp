@@ -1,9 +1,11 @@
 package tradelog.storage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +47,12 @@ public class StorageTest {
         storage.setPassword("testpassword");
     }
 
+    @Test
+    public void newStorage_encryptionDisabledByDefault() {
+        assertFalse(storage.isEncryptionEnabled(),
+                "New storage instances should start with encryption disabled.");
+    }
+
     /**
      * Tests that saving a populated TradeList and subsequently loading it
      * retrieves the exact same data, ensuring the write/read formats match.
@@ -55,7 +63,7 @@ public class StorageTest {
     public void saveAndLoadTrades_validData_successfulIntegration() throws TradeLogException {
         TradeList originalList = new TradeList();
         Trade trade = new Trade("AAPL", "2023-10-10", "long",
-                150.0, 160.0, 140.0, "WIN", "Trend");
+                150.0, 160.0, 140.0, "Trend");
         originalList.addTrade(trade);
         storage.saveTrades(originalList);
         TradeList loadedList = storage.loadTrades();
@@ -65,7 +73,6 @@ public class StorageTest {
         Trade loadedTrade = loadedList.getTrade(0);
         assertEquals("AAPL", loadedTrade.getTicker(), "Ticker should match the saved trade.");
         assertEquals(150.0, loadedTrade.getEntryPrice(), "Entry price should match.");
-        assertEquals("WIN", loadedTrade.getOutcome(), "Outcome should match.");
     }
 
     /**
@@ -99,8 +106,43 @@ public class StorageTest {
         TradeList emptyList = new TradeList();
         nestedStorage.saveTrades(emptyList);
         File nestedFile = new File(nestedFilePath);
-        
+
         assertTrue(nestedFile.exists(), "The nested file should have been created.");
         assertTrue(nestedFile.getParentFile().exists(), "The parent directories should have been created.");
+    }
+
+    @Test
+    public void saveAndLoadTrades_plaintextMode_writesDisabledFlagAndLoadsSuccessfully()
+            throws Exception {
+        TradeList originalList = new TradeList();
+        originalList.addTrade(new Trade("AAPL", "2026-03-18", "Long",
+                150.0, 165.0, 140.0, "Breakout"));
+
+        storage.saveTrades(originalList);
+
+        String fileContents = Files.readString(Path.of(testFilePath));
+        assertTrue(fileContents.contains("ENCRYPTED:false"));
+        assertTrue(fileContents.contains("AAPL | 2026-03-18 | Long | 150.0 | 165.0 | 140.0 | Breakout"));
+
+        TradeList loadedList = storage.loadTrades();
+        assertEquals(originalList.getTrade(0), loadedList.getTrade(0));
+    }
+
+    @Test
+    public void saveAndLoadTrades_encryptedMode_writesEnabledFlagAndHidesPlaintextData()
+            throws Exception {
+        TradeList originalList = new TradeList();
+        originalList.addTrade(new Trade("TSLA", "2026-03-19", "Short",
+                400.0, 380.0, 410.0, "Pullback"));
+        storage.setEncryptionEnabled(true);
+
+        storage.saveTrades(originalList);
+
+        String fileContents = Files.readString(Path.of(testFilePath));
+        assertTrue(fileContents.contains("ENCRYPTED:true"));
+        assertFalse(fileContents.contains("TSLA | 2026-03-19 | Short | 400.0 | 380.0 | 410.0 | Pullback"));
+
+        TradeList loadedList = storage.loadTrades();
+        assertEquals(originalList.getTrade(0), loadedList.getTrade(0));
     }
 }

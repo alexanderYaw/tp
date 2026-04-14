@@ -1,0 +1,25 @@
+@startuml
+skinparam Style strictuml
+skinparam classAttributeIconSize 0
+hide circles
+
+title Component-Level Description
+
+class "{abstract}\nCommand" as Command {
+    --
+    {abstract} +execute(tradeList, ui, storage)
+}
+
+class ListCommand {
+    --
+    +execute(tradeList, ui, storage)
+}
+
+class "<<boundary>>\nUi" as Ui {
+    +printTradeList(tradeList)
+}
+
+Command <|-- ListCommand
+ListCommand ..> Ui : calls printTradeList()
+
+@enduml
