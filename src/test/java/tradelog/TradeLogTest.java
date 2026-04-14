@@ -127,5 +127,4 @@ class TradeLogTest {
         String savedContent = Files.readString(tempDir.resolve("trades.txt"));
         assertTrue(savedContent.contains("AAPL"));
     }
-    }
 }
