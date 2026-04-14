@@ -32,19 +32,19 @@ public class Parser {
         String arguments = splitInput.length > 1 ? splitInput[1] : "";
 
         return switch (commandWord) {
-            case "list" -> new ListCommand();
-            case "add" -> new AddCommand(arguments);
-            case "delete" -> new DeleteCommand(arguments);
-            case "edit" -> new EditCommand(arguments);
-            case "filter" -> new FilterCommand(arguments);
-            case "compare" -> new CompareCommand();
-            case "summary" -> new SummaryCommand();
-            case "encrypt" -> new EncryptCommand(arguments);
-            case "undo" -> new UndoCommand();
-            case "mode" -> new SetModeCommand(arguments);
-            case "exit" -> new ExitCommand();
-            default -> throw new TradeLogException(
-                    "Unknown command: '" + commandWord + "'. Please try again.");
+        case "list" -> new ListCommand();
+        case "add" -> new AddCommand(arguments);
+        case "delete" -> new DeleteCommand(arguments);
+        case "edit" -> new EditCommand(arguments);
+        case "filter" -> new FilterCommand(arguments);
+        case "compare" -> new CompareCommand();
+        case "summary" -> new SummaryCommand();
+        case "encrypt" -> new EncryptCommand(arguments);
+        case "undo" -> new UndoCommand();
+        case "mode" -> new SetModeCommand(arguments);
+        case "exit" -> new ExitCommand();
+        default -> throw new TradeLogException(
+                "Unknown command: '" + commandWord + "'. Please try again.");
         };
     }
 }
