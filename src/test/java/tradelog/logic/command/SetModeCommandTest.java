@@ -46,13 +46,24 @@ public class SetModeCommandTest {
 
     @Test
     public void execute_validLiveMode_updatesToLive() {
-        provideInput("yes\n"); // Simulate user confirmation
-        SetModeCommand command = new SetModeCommand("live");
-        command.execute(tradeList, ui, storage);
+        // 1. Setup simulated input
+        provideInput("yes\n");
 
-        assertTrue(ModeManager.getInstance().isLive(), "Mode should be LIVE after successful transition");
-        assertEquals(ModeManager.EnvironmentMode.LIVE, ModeManager.getInstance().getCurrentMode());
-        System.setIn(systemIn); // Reset System.in
+        // 2. IMPORTANT: Re-initialize UI so its Scanner picks up the new System.in
+        Ui freshUi = new Ui();
+
+        // 3. Create and execute the command
+        SetModeCommand command = new SetModeCommand("live");
+        command.execute(tradeList, freshUi, storage);
+
+        // 4. Verification
+        assertTrue(ModeManager.getInstance().isLive(),
+                "Mode should be LIVE after successful transition");
+        assertEquals(ModeManager.EnvironmentMode.LIVE,
+                ModeManager.getInstance().getCurrentMode());
+
+        // 5. Cleanup
+        System.setIn(systemIn);
     }
 
     @Test
