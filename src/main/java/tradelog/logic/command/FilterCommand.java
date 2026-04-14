@@ -1,96 +1,98 @@
 package tradelog.logic.command;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import tradelog.exception.TradeLogException;
 import tradelog.logic.parser.ArgumentTokeniser;
-import tradelog.logic.parser.ParserUtil;
+import tradelog.model.ModeManager;
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
 import tradelog.ui.Ui;
 
 /**
- * Command to filter trades by ticker, strategy, and/or date.
+ * Represents a command to filter and display trades based on specific criteria.
  */
 public class FilterCommand extends Command {
 
-    public static final String[] PREFIXES = {"t/", "strat/", "d/"};
-
-    private final String ticker;
-    private final String strategy;
-    private final String date;
-    private final boolean isPartial;
+    private static final String[] ACCEPTED_PREFIXES = {"t/", "dir/", "strat/"};
+    private static final Logger logger = Logger.getLogger(FilterCommand.class.getName());
+    private final Map<String, String> filterArgs;
 
     /**
-     * Constructs a FilterCommand by parsing the arguments string.
+     * Constructs a FilterCommand by tokenising the user arguments.
      *
-     * @param arguments The user-provided arguments after "filter".
-     * @throws TradeLogException If no filter values are provided or validation fails.
+     * @param arguments The raw string containing filter prefixes.
      */
-    public FilterCommand(String arguments) throws TradeLogException {
-        HashMap<String, String> parsedArgs = ArgumentTokeniser.tokenise(arguments, PREFIXES);
-
-        // Fix: Only parse ticker if it's explicitly provided and not empty to avoid ParserUtil's empty check
-        String rawTicker = parsedArgs.getOrDefault("t/", "").trim();
-        this.ticker = rawTicker.isEmpty() ? "" : ParserUtil.parseTicker(rawTicker);
-
-        String rawStrategy = parsedArgs.getOrDefault("strat/", "").trim();
-        this.strategy = rawStrategy.isEmpty() ? "" : ParserUtil.parseStrategy(rawStrategy);
-
-        this.date = parsedArgs.getOrDefault("d/", "").trim();
-        this.isPartial = Arrays.asList(arguments.split(" ")).contains("-p");
-
-        // Align message with FilterCommandTest expectations
-        if (this.ticker.isEmpty() && this.strategy.isEmpty() && this.date.isEmpty()) {
-            throw new TradeLogException("At least one filter criteria (t/, strat/, or d/) must be provided.");
-        }
+    public FilterCommand(String arguments) {
+        assert arguments != null : "Arguments should not be null";
+        this.filterArgs = ArgumentTokeniser.tokenise(arguments, ACCEPTED_PREFIXES);
     }
 
+    /**
+     * Executes the filter command.
+     *
+     * @param tradeList The current list of trades.
+     * @param ui        The UI handler for output.
+     * @param storage   The storage handler for persistence.
+     */
     @Override
     public void execute(TradeList tradeList, Ui ui, Storage storage) {
-        assert tradeList != null : "TradeList should not be null";
-        assert ui != null : "Ui should not be null";
+        assert tradeList != null : "TradeList should not be null when executing filter";
+        assert ui != null : "Ui should not be null when executing filter";
 
-        List<Integer> matchingIndices = new ArrayList<>();
-        TradeList filteredTrades = new TradeList();
+        if (tradeList.isEmpty()) {
+            ui.showSummaryEmpty();
+            return;
+        }
 
+        List<Integer> matchedIndices = new ArrayList<>();
         for (int i = 0; i < tradeList.size(); i++) {
             Trade trade = tradeList.getTrade(i);
+            assert trade != null : "Trade at index " + i + " should not be null";
+
             if (isMatch(trade)) {
-                matchingIndices.add(i);
-                filteredTrades.addTrade(trade);
+                matchedIndices.add(i);
             }
         }
 
-        if (matchingIndices.isEmpty()) {
-            ui.showMessage("No trades match the filter criteria.");
-        } else {
-            ui.printIndexedTrades(tradeList, matchingIndices);
-            SummaryCommand summaryCommand = new SummaryCommand();
-            summaryCommand.execute(filteredTrades, ui, storage);
+        // obtain ModeManager instance
+        ModeManager modeManager = ModeManager.getInstance();
+
+        assert modeManager != null : "ModeManager should be initialized before checking isLive";
+
+        if (matchedIndices.isEmpty()) {
+            ui.showMessage("No trades found matching the criteria.");
+            return;
         }
+
+        // give instruction only in LIVE mode
+        if (modeManager.isLive()) {
+            ui.showMessage("[LIVE Mode Active] Note: Historical trades below are read-only.");
+        }
+
+        logger.log(Level.INFO, "Filter results found: {0} trades", matchedIndices.size());
+
+        // invoke original print method
+        ui.printIndexedTrades(tradeList, matchedIndices);
     }
 
     private boolean isMatch(Trade trade) {
-        boolean matchesTicker;
-        boolean matchesStrategy;
-        boolean matchesDate;
-
-        if (isPartial) {
-            matchesTicker = ticker.isEmpty() || trade.getTicker().contains(ticker.toUpperCase());
-            matchesStrategy = strategy.isEmpty() ||
-                    trade.getStrategy().toLowerCase().contains(strategy.toLowerCase());
-            matchesDate = date.isEmpty() || trade.getDate().contains(date);
-        } else {
-            matchesTicker = ticker.isEmpty() || trade.getTicker().equalsIgnoreCase(ticker);
-            matchesStrategy = strategy.isEmpty() || trade.getStrategy().equalsIgnoreCase(strategy);
-            matchesDate = date.isEmpty() || trade.getDate().equals(date);
+        if (filterArgs.containsKey("t/") &&
+                !trade.getTicker().equalsIgnoreCase(filterArgs.get("t/").trim())) {
+            return false;
         }
-
-        return matchesTicker && matchesStrategy && matchesDate;
+        if (filterArgs.containsKey("dir/") &&
+                !trade.getDirection().equalsIgnoreCase(filterArgs.get("dir/").trim())) {
+            return false;
+        }
+        if (filterArgs.containsKey("strat/") &&
+                !trade.getStrategy().equalsIgnoreCase(filterArgs.get("strat/").trim())) {
+            return false;
+        }
+        return true;
     }
 }

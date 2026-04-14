@@ -12,6 +12,7 @@ import tradelog.logic.command.SummaryCommand;
 import tradelog.logic.command.FilterCommand;
 import tradelog.logic.command.EncryptCommand;
 import tradelog.logic.command.UndoCommand;
+import tradelog.logic.command.SetModeCommand; // Import added
 
 /**
  * Parses raw user input and translates it into executable Command objects.
@@ -31,18 +32,19 @@ public class Parser {
         String arguments = splitInput.length > 1 ? splitInput[1] : "";
 
         return switch (commandWord) {
-        case "list" -> new ListCommand();
-        case "add" -> new AddCommand(arguments);
-        case "delete" -> new DeleteCommand(arguments);
-        case "edit" -> new EditCommand(arguments);
-        case "filter" -> new FilterCommand(arguments);
-        case "compare" -> new CompareCommand();
-        case "summary" -> new SummaryCommand();
-        case "encrypt" -> new EncryptCommand(arguments);
-        case "undo" -> new UndoCommand();
-        case "exit" -> new ExitCommand();
-        default -> throw new TradeLogException(
-                "Unknown command: '" + commandWord + "'. Please try again.");
+            case "list" -> new ListCommand();
+            case "add" -> new AddCommand(arguments);
+            case "delete" -> new DeleteCommand(arguments);
+            case "edit" -> new EditCommand(arguments);
+            case "filter" -> new FilterCommand(arguments);
+            case "compare" -> new CompareCommand();
+            case "summary" -> new SummaryCommand();
+            case "encrypt" -> new EncryptCommand(arguments);
+            case "undo" -> new UndoCommand();
+            case "mode" -> new SetModeCommand(arguments); // New case added
+            case "exit" -> new ExitCommand();
+            default -> throw new TradeLogException(
+                    "Unknown command: '" + commandWord + "'. Please try again.");
         };
     }
 }

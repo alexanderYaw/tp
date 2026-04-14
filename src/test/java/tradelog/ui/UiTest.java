@@ -1,7 +1,9 @@
 package tradelog.ui;
 
+import org.junit.jupiter.api.BeforeEach; // Added import
 import org.junit.jupiter.api.Test;
 import tradelog.logic.command.StrategyStats;
+import tradelog.model.ModeManager; // Added import
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 
@@ -21,6 +23,12 @@ class UiTest {
         action.run();
         System.setOut(original);
         return buffer.toString();
+    }
+
+    @BeforeEach
+    public void setUp() {
+        // Reset ModeManager to BACKTEST before each test for consistency
+        ModeManager.getInstance().setLive(false);
     }
 
     @Test
@@ -160,4 +168,5 @@ class UiTest {
         assertTrue(output.contains("Average Loss: 1.00R"));
         assertTrue(output.contains("EV: +0.500R"));
     }
+
 }

@@ -8,9 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 
+import org.junit.jupiter.api.BeforeEach; // Added import
 import org.junit.jupiter.api.Test;
 
 import tradelog.exception.TradeLogException;
+import tradelog.model.ModeManager; // Added import
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
@@ -28,6 +30,12 @@ public class FilterCommandTest {
         action.run();
         System.setOut(original);
         return buffer.toString();
+    }
+
+    @BeforeEach
+    public void setUp() {
+        // Reset ModeManager to BACKTEST before each test for consistency
+        ModeManager.getInstance().setLive(false);
     }
 
     @Test
@@ -138,5 +146,24 @@ public class FilterCommandTest {
 
         assertTrue(output.contains("AAPL | 2026-03-01 | Long"));
         assertFalse(output.contains("MSFT | 2026-03-02 | Short"));
+    }
+
+    // Added ModeManager Assertions
+
+    /**
+     * Verifies that FilterCommand functions correctly in LIVE mode.
+     */
+    @Test
+    public void execute_liveMode_operatesCorrectly() {
+        ModeManager.getInstance().setLive(true);
+        TradeList tradeList = new TradeList();
+        tradeList.addTrade(new Trade("AAPL", "2026-03-01", "Long", 100, 110, 95, "Breakout"));
+        Ui ui = new Ui();
+        Storage storage = new Storage("./data/trades.txt");
+
+        FilterCommand command = new FilterCommand("t/AAPL");
+        String output = captureOutput(() -> command.execute(tradeList, ui, storage));
+
+        assertTrue(output.contains("AAPL"), "FilterCommand should successfully find trades in LIVE mode.");
     }
 }

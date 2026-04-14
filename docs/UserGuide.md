@@ -20,6 +20,7 @@ TradeLog is optimized for users who can type quickly and prefer entering command
   - [Comparing strategies: `compare`](#comparing-strategies-compare)
   - [Viewing overall performance: `summary`](#viewing-overall-performance-summary)
   - [Undoing the most recent change: `undo`](#undoing-the-most-recent-change-undo)
+  - [Switching environment modes: `mode`](#switching-environment-modes-mode)
   - [Exiting the program: `exit`](#exiting-the-program-exit)
 - [FAQ](#faq)
 - [Command summary](#command-summary)
@@ -330,6 +331,34 @@ Current behavior:
 - Only one level of undo is supported.
 - If there is no previous change to undo, TradeLog tells you so.
 
+### Switching environment modes: `mode`
+
+Switches the application between `BACKTEST` and `LIVE` modes. This changes validation strictness and risk enforcement rules.
+
+Format:
+```text
+mode MODE
+```
+(MODE must be live or backtest.)
+
+Current behavior
+```text
+mode live
+```
+
+Expected Output:
+```text
+Switching to: LIVE
+
+WARNING: Live mode enforces strict discipline:
+- Only trades with today's date (2026-04-14) can be added.
+- Daily Loss Limit checks will be active.
+- Edits to historical data will be restricted.
+
+Enter 'yes' to confirm the switch, or any other key to cancel:
+
+```
+
 ### Exiting the program: `exit`
 
 Saves trades and closes TradeLog.
@@ -368,6 +397,7 @@ On exit, TradeLog shows the goodbye banner and then saves the current profile au
 | Compare strategies   | `compare`                                                                                                 |
 | View overall summary | `summary`                                                                                                 |
 | Undo last change     | `undo`                                                                                                    |
+| Switch mode          | `mode MODE`                                                                                               |
 | Exit                 | `exit`                                                                                                    |
 
 ## Planned enhancements

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import tradelog.exception.TradeLogException;
+import tradelog.model.ModeManager; // Added import
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
@@ -62,6 +63,9 @@ public class DeleteCommandTest {
         // Add two dummy trades so we have data to delete
         tradeList.addTrade(new Trade("AAPL", "2023-10-10", "long", 150.0, 160.0, 140.0, "Trend"));
         tradeList.addTrade(new Trade("TSLA", "2023-10-11", "short", 200.0, 180.0, 210.0, "Breakout"));
+
+        // Reset ModeManager to BACKTEST before each test for consistency
+        ModeManager.getInstance().setLive(false);
     }
 
     /**
@@ -166,5 +170,22 @@ public class DeleteCommandTest {
                 () -> new DeleteCommand(invalidArgs));
 
         assertTrue(exception.getMessage().contains("positive integer"));
+    }
+
+    // Added ModeManager Assertions
+
+    /**
+     * Verifies that deleting historical trades in LIVE mode is restricted.
+     */
+    @Test
+    public void execute_liveModeDeleteHistorical_showsErrorMessage() throws TradeLogException {
+        ModeManager.getInstance().setLive(true);
+        DeleteCommand command = new DeleteCommand("1");
+
+        command.execute(tradeList, mockUi, dummyStorage);
+
+        assertEquals(2, tradeList.size(), "Trade should not be deleted in LIVE mode.");
+        assertTrue(mockUi.isShowErrorCalled);
+        assertTrue(mockUi.capturedErrorMessage.contains("LIVE Mode: Historical trades cannot be deleted"));
     }
 }

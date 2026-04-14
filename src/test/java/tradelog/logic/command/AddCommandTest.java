@@ -4,10 +4,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import tradelog.exception.TradeLogException;
+import tradelog.model.ModeManager; // Added import
 import tradelog.model.Trade;
 import tradelog.model.TradeList;
 import tradelog.storage.Storage;
 import tradelog.ui.Ui;
+
+import java.time.LocalDate; // Added import for today's date validation
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,6 +41,9 @@ public class AddCommandTest {
         tradeList = new TradeList();
         dummyUi = new Ui();
         dummyStorage = new Storage("dummy_add_storage.txt");
+
+        // Reset ModeManager to BACKTEST before each test for consistency
+        ModeManager.getInstance().setLive(false);
     }
 
     /**
@@ -180,5 +186,35 @@ public class AddCommandTest {
         TradeLogException exception = assertThrows(TradeLogException.class,
                 () -> new AddCommand(invalidArgs));
         assertTrue(exception.getMessage().contains("Short position"));
+    }
+
+    // Added ModeManager Assertions
+
+    /**
+     * Tests that adding a past trade in LIVE mode throws a TradeLogException.
+     */
+    @Test
+    public void execute_liveModePastDate_throwsTradeLogException() throws TradeLogException {
+        ModeManager.getInstance().setLive(true);
+        String pastDateArgs = " t/TSLA d/2020-01-01 dir/long e/100 x/110 s/90 strat/BB";
+        AddCommand command = new AddCommand(pastDateArgs);
+
+        TradeLogException exception = assertThrows(TradeLogException.class,
+                () -> command.execute(tradeList, dummyUi, dummyStorage));
+        assertTrue(exception.getMessage().contains("LIVE Mode: Only today's trades can be added"));
+    }
+
+    /**
+     * Tests that adding today's trade in LIVE mode is allowed.
+     */
+    @Test
+    public void execute_liveModeTodayDate_addsSuccessfully() throws TradeLogException {
+        ModeManager.getInstance().setLive(true);
+        String today = LocalDate.now().toString();
+        String todayArgs = " t/NVDA d/" + today + " dir/short e/500 x/480 s/510 strat/Breakout";
+        AddCommand command = new AddCommand(todayArgs);
+
+        assertDoesNotThrow(() -> command.execute(tradeList, dummyUi, dummyStorage));
+        assertEquals(1, tradeList.size());
     }
 }

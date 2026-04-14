@@ -1,7 +1,10 @@
 package tradelog;
 
+import org.junit.jupiter.api.BeforeEach; // Added import
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import tradelog.model.ModeManager; // Added import
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -22,6 +25,12 @@ class TradeLogTest {
         action.run();
         System.setOut(original);
         return buffer.toString();
+    }
+
+    @BeforeEach
+    public void setUp() {
+        // Reset ModeManager to BACKTEST before each test for environmental consistency
+        ModeManager.getInstance().setLive(false);
     }
 
     @Test
@@ -78,5 +87,21 @@ class TradeLogTest {
         System.setIn(new ByteArrayInputStream("testpassword\n\nexit\n".getBytes()));
         String output = captureOutput(() -> new TradeLog(tempDir.toString(), "trades").run());
         assertTrue(output.contains("Error:"));
+    }
+
+    // Added ModeManager Integration Assertions
+
+    /**
+     * Verifies that the system can transition to LIVE mode via the command loop
+     * and displays the appropriate environment warning.
+     */
+    @Test
+    public void run_setModeCommand_showsModeTransition() {
+        String modeInput = "testpassword\nsetmode live\nexit\n";
+        System.setIn(new ByteArrayInputStream(modeInput.getBytes()));
+        String output = captureOutput(() -> new TradeLog(tempDir.toString(), "trades").run());
+
+        assertTrue(output.contains("Switched to LIVE mode"));
+        assertTrue(output.contains("Daily Loss Limit"), "Should show LIVE mode warnings.");
     }
 }
